@@ -1,6 +1,6 @@
 "use strict";
 window.AVT_CONFIG = Object.freeze({
-  version: "1.0.0-rc.4",
+  version: "1.0.0-rc.5",
   qrPrefix: "AVT-CHECKIN-V1:",
   backend: {
     // Hier nach der Apps-Script-Bereitstellung die Produktiv-Web-App-URL mit /exec eintragen.

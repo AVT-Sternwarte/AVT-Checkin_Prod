@@ -225,7 +225,11 @@
   function queueBreakdown(operations = AVT_BACKEND.getQueue()) {
     return (operations || []).reduce((result, operation) => {
       if (operation.action === "donation") result.donations += 1;
-      else if (operation.action === "checkin" || operation.action === "manualCheckin") result.checkins += 1;
+      else if (
+        operation.action === "checkin" ||
+        operation.action === "checkinBatch" ||
+        operation.action === "manualCheckin"
+      ) result.checkins += 1;
       else result.other += 1;
       return result;
     }, { checkins: 0, donations: 0, other: 0 });
@@ -333,16 +337,19 @@
     updateSuccessSyncBanner();
     updateDonationSyncBanner();
 
+    const currentExisting =
+      current?.token && !current?.parts?.length
+        ? registrationCheckin(current)
+        : null;
+
     if (
       !$("resultPanel").classList.contains("hidden") &&
-      current?.token &&
-      data.checkins[current.token] &&
+      currentExisting &&
       !$("successDetailsBtn")
     ) {
-      const existing = data.checkins[current.token];
       showMessage(
-        "Bereits eingecheckt",
-        `${current.number} wurde inzwischen auf einem anderen Gerät mit ${U.sumCounts(existing.counts)} Personen eingecheckt.`,
+        "Dieser Teil ist bereits eingecheckt",
+        `${(current.ids || [current.number]).join(", ")} wurde inzwischen auf einem anderen Gerät mit ${U.sumCounts(currentExisting.counts)} Personen eingecheckt.`,
         "warning",
         true
       );
@@ -648,6 +655,25 @@
       return existing.operationId === operation.operationId
         ? { state: "saved", record: existing }
         : { state: "duplicate", record: existing };
+    }
+
+    if (operation.action === "checkinBatch") {
+      const parts = operation.payload?.checkin?.parts || [];
+      const records = parts
+        .map(part => snapshotData.checkins?.[part.token] || null)
+        .filter(Boolean);
+
+      if (!parts.length || records.length !== parts.length) {
+        return { state: "missing", record: records };
+      }
+
+      const ownRecords = records.filter(record =>
+        record.operationId === operation.operationId
+      );
+
+      return ownRecords.length === records.length
+        ? { state: "saved", record: records }
+        : { state: "duplicate", record: records };
     }
 
     if (operation.action === "manualCheckin") {
@@ -1202,6 +1228,45 @@
     restartPolling();
   }
 
+  function registrationCheckin(registration) {
+    if (!registration) return null;
+
+    const direct = data.checkins[registration.token];
+    if (direct) return direct;
+
+    const registrationIds = registration.ids || [registration.number].filter(Boolean);
+    if (!registrationIds.length) return null;
+
+    return Object.values(data.checkins).find(checkin => {
+      const checkedIds = checkin.ids || [checkin.number].filter(Boolean);
+      return registrationIds.every(id => checkedIds.includes(id));
+    }) || null;
+  }
+
+  function isRegistrationChecked(registration) {
+    return Boolean(registrationCheckin(registration));
+  }
+
+  function openRegistrations(registrations) {
+    return (registrations || []).filter(registration =>
+      !isRegistrationChecked(registration)
+    );
+  }
+
+  function combineCounts(registrations) {
+    return (registrations || []).reduce((result, registration) => {
+      Object.keys(categories).forEach(key => {
+        result[key] += Number(registration.booked?.[key] || 0);
+      });
+      return result;
+    }, { adult: 0, child: 0, youth: 0, student: 0 });
+  }
+
+  function checkedPersonsForRegistration(registration) {
+    const checkin = registrationCheckin(registration);
+    return checkin ? U.sumCounts(checkin.counts) : 0;
+  }
+
   function bookedConfirmed() {
     return window.AVT_REGISTRATIONS
       .filter(registration => registration.status === "confirmed" && registration.eventId === C.event.id)
@@ -1237,7 +1302,9 @@
     window.AVT_REGISTRATIONS
       .filter(registration => registration.status === "confirmed" && registration.eventId === C.event.id)
       .forEach(registration => {
-        if (!data.checkins[registration.token]) expected += U.sumCounts(registration.booked);
+        if (!isRegistrationChecked(registration)) {
+          expected += U.sumCounts(registration.booked);
+        }
       });
 
     const regularOpen = expected;
@@ -1245,7 +1312,7 @@
       .filter(registration =>
         registration.eventId === C.event.id &&
         registration.status === "waitlist" &&
-        !data.checkins[registration.token]
+        !isRegistrationChecked(registration)
       )
       .reduce((sum, registration) => sum + U.sumCounts(registration.booked), 0);
 
@@ -1303,8 +1370,6 @@
           <dt>Eingecheckt</dt><dd>${currentStats.present} / max. ${C.event.maxPersons}</dd>
           <dt>Sicher freie Plätze</dt><dd>${currentStats.safe}</dd>
           <dt>Warteliste offen</dt><dd>${currentStats.waitOpen}</dd>
-          <dt>Frontend</dt><dd>${U.esc(C.version)}</dd>
-          <dt>Backend</dt><dd>${U.esc(backendVersion || "nicht ermittelt")}</dd>
         </dl>
       </div>`;
     $("modalConfirm").textContent = "Schließen";
@@ -1325,10 +1390,10 @@
     const currentStats = stats();
     $("presentTop").textContent = currentStats.present;
     $("summary").innerHTML = [
-      summaryCard("Anwesend", currentStats.present, `von ${C.event.maxPersons}`),
+      summaryCard("Anwesend", `${currentStats.present} von ${C.event.maxPersons}`, ""),
       summaryCard("Sicher frei", currentStats.safe, ""),
-      summaryCard("Eintritt", U.euro(currentStats.entry), "erfasst"),
-      summaryCard("Spenden", U.euro(currentStats.donations), "separat")
+      summaryCard("Summe Eintritt", U.euro(currentStats.entry), ""),
+      summaryCard("Summe Spenden", U.euro(currentStats.donations), "")
     ].join("");
 
   }
@@ -1381,22 +1446,82 @@
     renderResult();
   }
 
+  function selectAllOpenRegistrations(registrations) {
+    const openParts = openRegistrations(registrations);
+    if (!openParts.length) {
+      showMessage(
+        "Bereits vollständig eingecheckt",
+        "Alle Personen dieser Buchung wurden bereits eingecheckt.",
+        "warning",
+        true
+      );
+      return;
+    }
+
+    current = {
+      token: `${openParts[0].sourceToken || openParts[0].qrToken || openParts[0].token}~OPEN`,
+      sourceToken: openParts[0].sourceToken || openParts[0].qrToken || "",
+      qrToken: openParts[0].qrToken || openParts[0].sourceToken || "",
+      number: (openParts.flatMap(part => part.ids || [part.number]))[0] || "",
+      ids: openParts.flatMap(part => part.ids || [part.number]),
+      name: openParts[0].name,
+      status: "mixed",
+      eventId: openParts[0].eventId,
+      booked: combineCounts(openParts),
+      parts: openParts.map(part => U.clone(part)),
+      scenario: "Alle noch offenen Personen"
+    };
+
+    counts = U.clone(current.booked);
+    showAllCategories = false;
+    resetPriceState();
+    renderResult();
+  }
+
   function showSplitRegistrationSelection(matches) {
     panels.forEach(panel => $(panel).classList.add("hidden"));
     $("resultPanel").classList.remove("hidden");
 
+    const openParts = openRegistrations(matches);
+    const checkedParts = matches.filter(isRegistrationChecked);
+    const allChecked = openParts.length === 0;
+    const partiallyChecked = checkedParts.length > 0 && openParts.length > 0;
+
+    if (allChecked) {
+      showMessage(
+        "Bereits vollständig eingecheckt",
+        "Alle regulären und Wartelistenpersonen dieser Buchung wurden bereits eingecheckt.",
+        "warning",
+        true
+      );
+      return;
+    }
+
+    const openPersons = openParts.reduce(
+      (sum, registration) => sum + U.sumCounts(registration.booked),
+      0
+    );
+
     $("resultContent").innerHTML = `
-      <div class="card warning">
-        <h2>Geteilte Anmeldung</h2>
-        <p>Diese Buchung enthält reguläre Anmeldeplätze und Wartelistenplätze. Bitte wählen Sie den Teil aus, der jetzt eingecheckt werden soll.</p>
+      <div class="card ${partiallyChecked ? "warning" : ""}">
+        <h2>${partiallyChecked ? "Teilweise eingecheckt" : "Geteilte Anmeldung"}</h2>
+        <p>${
+          partiallyChecked
+            ? `Für diese Buchung sind noch ${openPersons} Personen offen. Bereits eingecheckte Teile werden nicht erneut angeboten.`
+            : "Diese Buchung enthält reguläre Anmeldeplätze und Wartelistenplätze. Bitte wählen Sie den Teil aus, der jetzt eingecheckt werden soll."
+        }</p>
       </div>
       <div class="registration-list">
         ${matches.map(registration => {
-          const existing = data.checkins[registration.token];
+          const existing = registrationCheckin(registration);
           const state = existing
             ? `Bereits eingecheckt · ${U.sumCounts(existing.counts)} Personen`
             : labelStatus(registration.status);
-          return `<button class="registration-entry" data-split-token="${U.esc(registration.token)}">
+          return `<button
+              class="registration-entry ${existing ? "registration-entry-disabled" : ""}"
+              data-split-token="${U.esc(registration.token)}"
+              type="button"
+              ${existing ? "disabled" : ""}>
             <span class="registration-entry-main">
               <strong>${U.esc((registration.ids || [registration.number]).join(", "))}</strong>
               <small>${U.sumCounts(registration.booked)} Personen</small>
@@ -1404,14 +1529,22 @@
             <span class="registration-state ${existing ? "checked" : registration.status === "waitlist" ? "wait" : ""}">${U.esc(state)}</span>
           </button>`;
         }).join("")}
-      </div>`;
+      </div>
+      ${openParts.length > 1
+        ? '<button id="checkAllOpenPartsBtn" class="primary full split-all-open-button" type="button">Alle noch offenen Personen einchecken</button>'
+        : ""}`;
 
-    $("resultContent").querySelectorAll("[data-split-token]").forEach(button => {
+    $("resultContent").querySelectorAll("[data-split-token]:not([disabled])").forEach(button => {
       button.onclick = () => {
         const selected = matches.find(item => item.token === button.dataset.splitToken);
         if (selected) selectRegistration(selected);
       };
     });
+
+    if ($("checkAllOpenPartsBtn")) {
+      $("checkAllOpenPartsBtn").onclick = () =>
+        selectAllOpenRegistrations(openParts);
+    }
   }
 
   function processToken(token) {
@@ -1448,7 +1581,7 @@
 
     const query = $("searchInput").value.trim().toLowerCase();
     const list = activeEventRegistrations().filter(registration => {
-      const checked = Boolean(data.checkins[registration.token]);
+      const checked = isRegistrationChecked(registration);
       if (searchFilter === "open" && checked) return false;
       if (searchFilter === "checked" && !checked) return false;
       const searchableIds = (registration.ids || [registration.number]).join(" ").toLowerCase();
@@ -1469,7 +1602,7 @@
   }
 
   function searchResultHtml(registration) {
-    const checkin = data.checkins[registration.token];
+    const checkin = registrationCheckin(registration);
     let stateClass = "";
     let stateText = labelStatus(registration.status);
 
@@ -1499,21 +1632,39 @@
       return;
     }
 
-    const existing = data.checkins[current.token];
+    const existing =
+      current.parts?.length
+        ? null
+        : registrationCheckin(current);
     if (existing) {
-      showMessage("Bereits eingecheckt", `${current.number} wurde bereits mit ${U.sumCounts(existing.counts)} Personen eingecheckt.`, "warning", true);
+      showMessage(
+        "Dieser Teil ist bereits eingecheckt",
+        `${(current.ids || [current.number]).join(", ")} wurde bereits mit ${U.sumCounts(existing.counts)} Personen eingecheckt.`,
+        "warning",
+        true
+      );
       return;
     }
 
-    const waitBlock = current.status === "waitlist" ? earlierWaitIds() : [];
-    const tone = current.status === "cancelled" ? "dangerbox" : current.status === "waitlist" ? "warning" : "";
+    const containsWaitlist =
+      current.status === "waitlist" ||
+      Boolean(current.parts?.some(part => part.status === "waitlist"));
+    const waitBlock = containsWaitlist ? earlierWaitIds() : [];
+    const tone =
+      current.status === "cancelled"
+        ? "dangerbox"
+        : containsWaitlist
+          ? "warning"
+          : "";
     let warning = "";
 
     if (current.status === "cancelled") {
       warning = '<div class="card dangerbox"><strong>Stornierte Anmeldung</strong><p>Ein Check-in ist nur als ausdrückliche Ausnahme möglich.</p></div>';
     }
-    if (waitBlock.length) {
-      warning = `<div class="card warning"><strong>Diese Wartelistenanmeldung ist noch nicht an der Reihe.</strong><p>Vorher sind noch folgende Wartelisten-IDs offen:</p><ul class="wait-warning-list">${waitBlock.map(id => `<li>${U.esc(id)}</li>`).join("")}</ul><p>Ein Check-in ist nach zusätzlicher Bestätigung trotzdem möglich.</p></div>`;
+    if (containsWaitlist) {
+      warning = waitBlock.length
+        ? `<div class="card warning"><strong>Diese Auswahl enthält Wartelistenplätze und ist noch nicht an der Reihe.</strong><p>Vorher sind noch folgende Wartelisten-IDs offen:</p><ul class="wait-warning-list">${waitBlock.map(id => `<li>${U.esc(id)}</li>`).join("")}</ul><p>Ein Check-in ist nach zusätzlicher Bestätigung trotzdem möglich.</p></div>`
+        : '<div class="card warning"><strong>Diese Auswahl enthält Wartelistenplätze.</strong><p>Der Check-in ist nach Bestätigung möglich.</p></div>';
     }
 
     $("resultContent").innerHTML = `
@@ -1527,16 +1678,20 @@
         </div>
       </div>
       ${warning}
-      ${counterHtml(false)}
+      ${current.parts?.length
+        ? actualPersonsHtml(counts)
+        : counterHtml(false)}
       ${priceHtml(`<button id="completeBtn" class="primary checkin-side-button" type="button">${
-        current.status === "cancelled"
-          ? "Ausnahme einchecken"
-          : current.status === "waitlist"
-            ? "Warteliste einchecken"
-            : "Check-in abschließen"
+        current.parts?.length
+          ? "Alle offenen einchecken"
+          : current.status === "cancelled"
+            ? "Ausnahme einchecken"
+            : current.status === "waitlist"
+              ? "Warteliste einchecken"
+              : "Check-in abschließen"
       }</button>`)}`;
 
-    bindCounters(false);
+    if (!current.parts?.length) bindCounters(false);
     bindPrice();
     $("showIdsButton").onclick = showCurrentIds;
     $("completeBtn").onclick = completeExisting;
@@ -1558,6 +1713,7 @@
   function labelStatus(status) {
     if (status === "confirmed") return "Reguläre Anmeldung";
     if (status === "waitlist") return "Warteliste";
+    if (status === "mixed") return "Regulär + Warteliste";
     return "Storniert";
   }
 
@@ -1570,12 +1726,17 @@
     const currentIds = current?.ids || [current?.number].filter(Boolean);
     const currentMinimum = Math.min(...currentIds.map(waitIdNumber));
 
+    const currentTokens = new Set(
+      current?.parts?.map(part => part.token) ||
+      [current?.token].filter(Boolean)
+    );
+
     return window.AVT_REGISTRATIONS
       .filter(registration =>
         registration.eventId === C.event.id &&
         registration.status === "waitlist" &&
-        registration.token !== current?.token &&
-        !data.checkins[registration.token]
+        !currentTokens.has(registration.token) &&
+        !isRegistrationChecked(registration)
       )
       .flatMap(registration => registration.ids || [registration.number])
       .filter(id => waitIdNumber(id) < currentMinimum)
@@ -1890,7 +2051,165 @@
     );
   }
 
+  function batchPartCheckins(batch, operationId, offline) {
+    return batch.parts.map((part, index) => ({
+      token: part.token,
+      sourceToken: part.sourceToken || part.qrToken || "",
+      number: part.number,
+      ids: part.ids || [part.number],
+      name: batch.name,
+      counts: U.clone(part.booked),
+      paid: index === 0 ? batch.paid : 0,
+      basePrice: index === 0 ? batch.basePrice : 0,
+      tariff: batch.tariff,
+      correctionReason: batch.correctionReason,
+      kind: part.status === "confirmed" ? "regular" : "waitlist",
+      offline: Boolean(offline),
+      time: batch.time,
+      operationId
+    }));
+  }
+
+  function persistSuccessfulBatch(batch, operationId, offline) {
+    batchPartCheckins(batch, operationId, offline).forEach(checkin => {
+      persistSuccessfulCheckin(checkin, false);
+    });
+  }
+
+  async function completeBatchExisting() {
+    const openParts = openRegistrations(current.parts || []);
+    if (!openParts.length) {
+      showMessage(
+        "Bereits vollständig eingecheckt",
+        "Alle Personen dieser Buchung wurden bereits eingecheckt.",
+        "warning",
+        true
+      );
+      return;
+    }
+
+    if (!validateCorrection()) return;
+
+    const openCounts = combineCounts(openParts);
+    const persons = U.sumCounts(openCounts);
+    const ids = openParts.flatMap(part => part.ids || [part.number]);
+    let message =
+      `${ids.join(", ")} mit ${persons} Personen und ${U.euro(chosenPrice())} Eintritt einchecken?`;
+
+    if (openParts.some(part => part.status === "waitlist")) {
+      const earlierIds = earlierWaitIds();
+      message = earlierIds.length
+        ? `Frühere Wartelistenanmeldungen sind noch offen. Trotzdem alle offenen Personen einchecken? ${message}`
+        : `Diese Auswahl enthält Wartelistenplätze. Alle offenen Personen einchecken? ${message}`;
+    }
+
+    const confirmation = capacityConfirmation(
+      persons,
+      message,
+      "Alle offenen Personen einchecken"
+    );
+
+    if (!(
+      await confirmBox(
+        confirmation.title,
+        confirmation.message,
+        "Alle einchecken",
+        confirmation.tone
+      )
+    )) return;
+
+    if (!(await confirmOfflineOperation("checkin"))) return;
+
+    const batch = {
+      token: current.token,
+      sourceToken: current.sourceToken || current.qrToken || "",
+      number: ids[0] || "",
+      ids,
+      name: current.name,
+      counts: U.clone(openCounts),
+      paid: chosenPrice(),
+      basePrice: basePrice(),
+      tariff: tariffMode,
+      correctionReason,
+      kind: "mixed",
+      parts: openParts.map(part => ({
+        token: part.token,
+        sourceToken: part.sourceToken || part.qrToken || "",
+        sourceRow: part.sourceRow,
+        part: part.part,
+        number: part.number,
+        ids: part.ids || [part.number],
+        name: part.name,
+        status: part.status,
+        booked: U.clone(part.booked)
+      })),
+      offline: !navigator.onLine || onlineState === "offline",
+      time: U.now()
+    };
+
+    if (window.AVT_BACKEND?.isConfigured()) {
+      if (batch.offline) {
+        const operation = prepareOfflineOperation("checkinBatch", batch);
+        persistSuccessfulBatch(batch, operation.operationId, true);
+      } else {
+        const result = await saveOperationWithProgress(
+          "checkinBatch",
+          { checkin: batch }
+        );
+        batch.operationId = result.operation.operationId;
+
+        if (result.status === "cancelled") return;
+
+        if (result.status === "rejected") {
+          await handleRejectedOperation(result);
+          return;
+        }
+
+        if (result.status === "duplicate") {
+          renderSharedState();
+          restartPolling();
+          showMessage(
+            "Bereits eingecheckt",
+            "Die noch offenen Personen wurden inzwischen auf einem anderen Gerät eingecheckt. Es wurde kein zweiter Check-in gespeichert.",
+            "warning",
+            true
+          );
+          return;
+        }
+
+        batch.offline = result.status === "queued";
+        persistSuccessfulBatch(batch, batch.operationId, batch.offline);
+        schedulePostSaveRefresh();
+
+        if (result.delayed && result.status === "saved") {
+          current = null;
+          counts = null;
+          nav("home", { forceTop: true });
+          toast("Alle offenen Personen wurden eingecheckt.");
+          restartPolling();
+          return;
+        }
+      }
+    } else {
+      persistSuccessfulBatch(batch, batch.operationId || "", batch.offline);
+    }
+
+    const successCheckin = {
+      ...batch,
+      operationId: batch.operationId || "",
+      offline: batch.offline
+    };
+
+    restartPolling();
+    renderSuccess(successCheckin);
+  }
+
   async function completeExisting() {
+    if (current?.parts?.length) {
+      await completeBatchExisting();
+      return;
+    }
+
     if (U.sumCounts(counts) < 1) {
       toast("Mindestens eine Person erforderlich.");
       return;

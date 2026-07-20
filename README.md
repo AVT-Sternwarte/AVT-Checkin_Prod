@@ -1,9 +1,15 @@
-# AVT Check-in Frontend 1.0.0-rc.4
+# AVT Check-in Frontend 1.0.0-rc.5
 
-Die produktive Backendadresse ist bereits in `js/config.js` eingetragen und
+Die produktive Backendadresse ist in `js/config.js` bereits eingetragen und
 `enabled` steht auf `true`.
 
-Den vollständigen Inhalt dieses Ordners in die Wurzel des GitHub-
-Produktivrepositorys hochladen.
+Den vollständigen Inhalt dieses Ordners in das GitHub-Produktivrepository
+hochladen.
 
-Die integrierte `help.html` beschreibt den Funktionsstand dieser Version.
+Neu in dieser Version:
+
+- kompaktere iPhone-12-mini-Darstellung
+- zweizeilige Statistik-Kacheln
+- erneuter QR-Scan nach einem Teil-Check-in
+- `Alle noch offenen Personen einchecken`
+- aktualisierte integrierte Hilfe

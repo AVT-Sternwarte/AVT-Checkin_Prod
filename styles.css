@@ -528,7 +528,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.4 */
+/* Produktivkorrekturen 1.0.0-rc.5 */
 .head-actions{
   flex:0 0 auto;
   gap:6px;
@@ -595,7 +595,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.4 */
+/* Produktivkorrekturen 1.0.0-rc.5 */
 .registration-blocked-card{
   border:2px solid #d7a928;
   background:#fff8df;
@@ -614,7 +614,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.4 */
+/* Produktivkorrekturen 1.0.0-rc.5 */
 .compact-safe-capacity{
   display:flex;
   align-items:baseline;
@@ -659,4 +659,89 @@ body.force-top-reset{
   .event-info-svg{width:30px;height:30px}
   .compact-event-card{gap:6px;padding:8px 9px}
   .backend-status{font-size:.75rem;padding:7px 9px}
+}
+
+
+/* Produktivkorrekturen 1.0.0-rc.5 */
+.compact-capacity{
+  white-space:nowrap;
+}
+.compact-safe-capacity{
+  gap:4px;
+}
+.waitlist-top-separator{
+  flex:0 0 auto;
+}
+.summary-card{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-height:96px;
+}
+.summary-card > small:first-child{
+  line-height:1.15;
+}
+.summary-card strong{
+  display:block;
+  line-height:1.12;
+  white-space:nowrap;
+}
+.registration-entry-disabled{
+  opacity:.78;
+  cursor:default;
+}
+.split-all-open-button{
+  margin-top:12px;
+}
+@media(max-width:430px){
+  .compact-event-card{
+    padding:8px 8px;
+    gap:5px;
+  }
+  .compact-capacity{
+    font-size:.86rem;
+    letter-spacing:-.018em;
+    line-height:1.15;
+  }
+  .compact-safe-capacity{
+    font-size:.74rem;
+    letter-spacing:-.018em;
+    gap:3px;
+  }
+  .event-info-btn{
+    width:34px;
+    height:34px;
+    border-radius:9px;
+  }
+  .event-info-svg{
+    width:27px;
+    height:27px;
+  }
+  .summary-card{
+    min-height:88px;
+    padding:10px;
+  }
+  .summary-card strong{
+    font-size:1.24rem;
+  }
+  .summary-card small{
+    font-size:.82rem;
+  }
+}
+@media(max-width:350px){
+  .compact-capacity{
+    font-size:.79rem;
+  }
+  .compact-safe-capacity{
+    font-size:.69rem;
+    gap:2px;
+  }
+  .event-info-btn{
+    width:31px;
+    height:31px;
+  }
+  .event-info-svg{
+    width:24px;
+    height:24px;
+  }
 }
