@@ -102,14 +102,6 @@
     $("cameraPlaceholder").addEventListener("click", startCamera);
     $("startCameraButton").addEventListener("click", startCamera);
     $("stopCameraButton").addEventListener("click", () => SC.stop());
-    $("imageInput").addEventListener("change", async event => {
-      try {
-        const result = await SC.decodeImageFile(event.target.files?.[0]);
-        handlePayload(result);
-      } catch (error) {
-        toast(error.message || "QR-Code nicht erkannt.");
-      }
-    });
     $("modalCancel").addEventListener("click", () => closeModal(false));
     $("modalConfirm").addEventListener("click", () => closeModal(true));
     $("saveDelayContinue").addEventListener("click", () => closeSaveDelayChoice("continue"));
@@ -162,6 +154,12 @@
       C.event.dateDisplay = snapshot.event.dateDisplay || "";
       C.event.time = snapshot.event.time;
       C.event.maxPersons = snapshot.event.maxPersons;
+      C.event.registrationEnabled =
+        snapshot.event.registrationEnabled === undefined
+          ? true
+          : snapshot.event.registrationEnabled === true;
+      C.event.registrationDisabledReason =
+        String(snapshot.event.registrationDisabledReason || "");
     }
     if (snapshot.prices) Object.assign(C.prices, snapshot.prices);
     if (snapshot.familyRule) Object.assign(C.familyRule, snapshot.familyRule);
@@ -245,7 +243,59 @@
     setBackendStatus("offline", `${text} · ${outstandingText()}`);
   }
 
+  function registrationAvailabilityKnown() {
+    return C.event.registrationEnabled === true || C.event.registrationEnabled === false;
+  }
+
+  function registrationAllowed() {
+    return C.event.registrationEnabled === true;
+  }
+
+  function renderRegistrationAvailability() {
+    const known = registrationAvailabilityKnown();
+    const allowed = registrationAllowed();
+    const blockedPanel = $("registrationBlockedPanel");
+    const eventCard = $("eventSummaryCard");
+    const actionRow = $("mainActionRow");
+
+    if (allowed) {
+      blockedPanel.classList.add("hidden");
+      eventCard.classList.remove("hidden");
+      actionRow.classList.remove("hidden");
+
+      if (panels.every(panelId => $(panelId).classList.contains("hidden"))) {
+        $("homePanel").classList.remove("hidden");
+      }
+      return;
+    }
+
+    SC.stop();
+    panels.forEach(panelId => $(panelId).classList.add("hidden"));
+    eventCard.classList.add("hidden");
+    actionRow.classList.add("hidden");
+    $("operationNotice").classList.add("hidden");
+    blockedPanel.classList.remove("hidden");
+
+    $("registrationBlockedTitle").textContent = known
+      ? "Check-in derzeit nicht verfügbar"
+      : "Veranstaltung wird geprüft …";
+
+    $("registrationBlockedText").textContent = known
+      ? (
+          C.event.registrationDisabledReason ||
+          `Für die Veranstaltungsart „${C.event.title || "–"}“ ist keine Voranmeldung und kein Check-in vorgesehen.`
+        )
+      : "Die Freigabe für Voranmeldung und Check-in wird aus der bestehenden Veranstaltungskonfiguration geladen.";
+
+    $("registrationBlockedEvent").textContent = C.event.title || "–";
+    $("registrationBlockedTime").textContent =
+      `${eventDateText()} · ${eventTimeText()} Uhr`;
+  }
+
   function renderSharedState() {
+    renderRegistrationAvailability();
+    if (!registrationAllowed()) return;
+
     renderAll();
 
     if (!$("searchPanel").classList.contains("hidden")) {
@@ -487,6 +537,25 @@
     document.querySelector(".app-shell")?.removeAttribute("inert");
   }
 
+  function isTerminalOperationError(error) {
+    return [
+      "CHECKIN_NOT_AVAILABLE",
+      "REGISTRATION_NOT_AVAILABLE"
+    ].includes(String(error?.code || ""));
+  }
+
+  async function handleRejectedOperation(result) {
+    const message =
+      result?.error?.message ||
+      "Für die aktuelle Veranstaltungsart ist kein Check-in vorgesehen.";
+
+    try {
+      await refreshSharedState({ quiet: true, reason: "server-sperre" });
+    } catch {}
+
+    toast(message);
+  }
+
   function operationText(action) {
     if (action === "donation") {
       return {
@@ -630,6 +699,13 @@
       completeResolve({ status: "saved", result, operation });
     }
 
+    function markRejected(error) {
+      if (completed) return;
+      completed = true;
+      closeSaveDelayChoice("rejected");
+      completeResolve({ status: "rejected", error, operation });
+    }
+
     function markDuplicate(snapshot, existing) {
       if (completed) return;
       completed = true;
@@ -700,6 +776,11 @@
         requestFailed = true;
         requestError = error;
 
+        if (isTerminalOperationError(error)) {
+          markRejected(error);
+          return;
+        }
+
         // Bei einem konkurrierenden Check-in liefert das Backend bereits
         // "Diese Anmeldung wurde bereits eingecheckt". Der gemeinsame Stand
         // wird sofort geprüft, ohne den Check-in erneut zu senden.
@@ -719,7 +800,11 @@
         wait(savingWarningMilliseconds()).then(() => ({ status: "warning" }))
       ]);
 
-      if (outcome.status === "saved" || outcome.status === "duplicate") {
+      if (
+        outcome.status === "saved" ||
+        outcome.status === "duplicate" ||
+        outcome.status === "rejected"
+      ) {
         hideSavingOverlay();
         return outcome;
       }
@@ -730,7 +815,7 @@
         requestError?.message || ""
       );
 
-      if (choice === "saved" || choice === "duplicate") {
+      if (choice === "saved" || choice === "duplicate" || choice === "rejected") {
         const finishedOutcome = await completion;
         hideSavingOverlay();
         return finishedOutcome;
@@ -993,7 +1078,8 @@
     $("loginView").classList.add("hidden");
     $("mainView").classList.remove("hidden");
     $("headActions").classList.remove("hidden");
-    nav("home", { forceTop: true });
+    C.event.registrationEnabled = null;
+    renderRegistrationAvailability();
     updateHeaderStats();
     initializeBackend();
     forcePageTop();
@@ -1001,6 +1087,12 @@
 
   function nav(name, options = {}) {
     SC.stop();
+
+    if (!registrationAllowed()) {
+      renderRegistrationAvailability();
+      if (options.forceTop) forcePageTop();
+      return;
+    }
     panels.forEach(panel => $(panel).classList.add("hidden"));
     const panel = $(name + "Panel") || $("homePanel");
     panel.classList.remove("hidden");
@@ -1703,6 +1795,11 @@
           return;
         }
 
+        if (result.status === "rejected") {
+          await handleRejectedOperation(result);
+          return;
+        }
+
         if (result.status === "duplicate") {
           renderSharedState();
           restartPolling();
@@ -1777,6 +1874,11 @@
         checkin.operationId = result.operation.operationId;
 
         if (result.status === "cancelled") {
+          return;
+        }
+
+        if (result.status === "rejected") {
+          await handleRejectedOperation(result);
           return;
         }
 
@@ -1969,6 +2071,11 @@
         donation.operationId = result.operation.operationId;
 
         if (result.status === "cancelled") {
+          return;
+        }
+
+        if (result.status === "rejected") {
+          await handleRejectedOperation(result);
           return;
         }
 

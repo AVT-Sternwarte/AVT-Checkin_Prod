@@ -10,24 +10,21 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon-32.png">
-<link rel="stylesheet" href="styles.css?v=1.0.0-rc.2">
+<link rel="stylesheet" href="styles.css?v=1.0.0-rc.3">
 </head>
 <body>
 <div class="app-shell">
 <header class="topbar">
   <div class="brand">
     <img src="icons/header-logo.png" alt="Logo der Astronomischen Vereinigung Tübingen e. V.">
-    <div><strong>AVT Check-in</strong><small>Version 1.0.0-rc.2</small></div>
+    <div><strong>AVT Check-in</strong><small>Version 1.0.0-rc.3</small></div>
   </div>
   <div class="head-actions hidden" id="headActions">
     <button id="logoutTopBtn" class="head-btn" type="button" aria-label="Abmelden" title="Abmelden">
       <img src="icons/power-icon.png" alt="">
     </button>
     <button id="refreshBtn" class="head-btn" type="button" aria-label="Gemeinsamen Stand aktualisieren" title="Gemeinsamen Stand aktualisieren">
-      <svg viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M25 9a11 11 0 1 1-4-3.2"></path>
-        <path d="M24 3v8h-8"></path>
-      </svg>
+      <img src="icons/refresh-icon.svg" alt="">
     </button>
     <button id="helpBtn" class="head-btn" type="button" aria-label="Hilfe öffnen" title="Hilfe öffnen">
       <img src="icons/help-icon.svg" alt="">
@@ -70,7 +67,22 @@
 
 <section id="mainView" class="view hidden">
   <div id="backendStatus" class="backend-status local">Verbindung wird hergestellt …</div>
-  <section class="event-card compact-event-card">
+  <section id="registrationBlockedPanel" class="panel hidden" aria-live="polite">
+    <div class="card registration-blocked-card">
+      <h2 id="registrationBlockedTitle">Veranstaltung wird geprüft …</h2>
+      <p id="registrationBlockedText" class="muted">
+        Die Freigabe für Voranmeldung und Check-in wird aus der bestehenden Veranstaltungskonfiguration geladen.
+      </p>
+      <dl class="detail-grid registration-blocked-details">
+        <dt>Veranstaltung</dt><dd id="registrationBlockedEvent">–</dd>
+        <dt>Termin</dt><dd id="registrationBlockedTime">–</dd>
+      </dl>
+      <p class="muted registration-blocked-hint">
+        Nach einer Änderung der Veranstaltung oben das Aktualisierungssymbol antippen.
+      </p>
+    </div>
+  </section>
+  <section id="eventSummaryCard" class="event-card compact-event-card">
     <div class="event-compact-lines">
       <div class="capacity compact-capacity"><strong id="presentTop">0</strong> von <strong>65</strong> Personen eingecheckt</div>
       <div class="safe-capacity compact-safe-capacity">Sicher freie Plätze: <strong id="safeFreeTop">0</strong></div>
@@ -123,7 +135,6 @@
       <p id="cameraStatus" class="muted"></p>
       <button id="startCameraButton" class="primary full">Kamera starten</button>
       <button id="stopCameraButton" class="secondary full hidden">Kamera stoppen</button>
-      <label class="button secondary full">QR-Code aus Bild auswählen<input id="imageInput" type="file" accept="image/*" hidden></label>
     </div>
   </section>
 
@@ -216,10 +227,10 @@
 </div>
 
 <script src="js/jsQR.js?v=1.4.0"></script>
-<script src="js/config.js?v=1.0.0-rc.2"></script>
-<script src="js/backend.js?v=1.0.0-rc.2"></script>
-<script src="js/storage.js?v=1.0.0-rc.2"></script>
-<script src="js/scanner.js?v=1.0.0-rc.2"></script>
-<script src="js/app.js?v=1.0.0-rc.2"></script>
+<script src="js/config.js?v=1.0.0-rc.3"></script>
+<script src="js/backend.js?v=1.0.0-rc.3"></script>
+<script src="js/storage.js?v=1.0.0-rc.3"></script>
+<script src="js/scanner.js?v=1.0.0-rc.3"></script>
+<script src="js/app.js?v=1.0.0-rc.3"></script>
 </body>
 </html>

@@ -88,41 +88,5 @@ window.AVT_SCANNER = (function () {
     }
   }
 
-  async function decodeImageFile(file) {
-    if (typeof window.jsQR !== "function") {
-      throw new Error("Die QR-Erkennung konnte nicht geladen werden.");
-    }
-
-    const source = await loadImageSource(file);
-    const width = source.width || source.naturalWidth;
-    const height = source.height || source.naturalHeight;
-    const c = canvas();
-    const maxWidth = 1400;
-    const scale = Math.min(1, maxWidth / width);
-    c.width = Math.max(1, Math.round(width * scale));
-    c.height = Math.max(1, Math.round(height * scale));
-    const ctx = c.getContext("2d", { willReadFrequently: true });
-    ctx.drawImage(source, 0, 0, c.width, c.height);
-    source.close?.();
-    if (source.__objectUrl) URL.revokeObjectURL(source.__objectUrl);
-    const image = ctx.getImageData(0, 0, c.width, c.height);
-    const result = window.jsQR(image.data, image.width, image.height, { inversionAttempts: "attemptBoth" });
-    if (!result?.data) throw new Error("Auf dem ausgewählten Bild wurde kein QR-Code erkannt.");
-    return result.data;
-  }
-
-  async function loadImageSource(file) {
-    if (typeof createImageBitmap === "function") {
-      return createImageBitmap(file);
-    }
-    const objectUrl = URL.createObjectURL(file);
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => { image.__objectUrl = objectUrl; resolve(image); };
-      image.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Das ausgewählte Bild konnte nicht geöffnet werden.")); };
-      image.src = objectUrl;
-    });
-  }
-
-  return { start, stop, decodeImageFile, setStatus };
+  return { start, stop, setStatus };
 })();

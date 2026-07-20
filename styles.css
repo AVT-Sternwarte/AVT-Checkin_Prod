@@ -528,7 +528,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.2 */
+/* Produktivkorrekturen 1.0.0-rc.3 */
 .head-actions{
   flex:0 0 auto;
   gap:6px;
@@ -592,4 +592,23 @@ body.force-top-reset{
   .brand img{width:38px;height:38px}
   .head-btn{width:38px;height:38px}
   .head-actions{gap:3px}
+}
+
+
+/* Produktivkorrekturen 1.0.0-rc.3 */
+.registration-blocked-card{
+  border:2px solid #d7a928;
+  background:#fff8df;
+}
+.registration-blocked-card h2{
+  margin-top:0;
+  color:#6b4d00;
+}
+.registration-blocked-details{
+  margin-top:14px;
+}
+.registration-blocked-hint{
+  margin-bottom:0;
+  padding-top:8px;
+  border-top:1px solid #d7a92866;
 }

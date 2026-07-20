@@ -1,9 +1,9 @@
-const CACHE = "avt-checkin-prod-1.0.0-rc.2";
+const CACHE = "avt-checkin-prod-1.0.0-rc.3";
 const LOCAL_FILES = [
   "./", "index.html", "help.html", "styles.css", "manifest.webmanifest",
   "js/config.js", "js/backend.js", "js/storage.js", "js/scanner.js",
   "js/app.js", "js/jsQR.js", "icons/icon-192.png", "icons/icon-512.png",
-  "icons/header-logo.png", "icons/power-icon.png", "icons/help-icon.svg"
+  "icons/header-logo.png", "icons/power-icon.png", "icons/refresh-icon.svg", "icons/help-icon.svg"
 ];
 const JSQR_URL = "https://unpkg.com/jsqr@1.4.0/dist/jsQR.js";
 
