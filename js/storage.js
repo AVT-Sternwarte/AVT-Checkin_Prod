@@ -21,6 +21,10 @@ window.AVT_STORE = (function () {
     return data;
   }
 
+  function loginBackupKey() {
+    return C.storageKeys.loginBackup || `${C.storageKeys.login}-backup`;
+  }
+
   function setLogin(login) {
     const mode = String(login?.mode || "day");
     const payload = {
@@ -28,23 +32,37 @@ window.AVT_STORE = (function () {
       mode,
       createdAt: Date.now(),
       sessionToken: String(login?.sessionToken || ""),
-      expiresAt: Number(login?.expiresAt || 0)
+      expiresAt: mode === "permanent" ? 0 : Number(login?.expiresAt || 0)
     };
     const raw = JSON.stringify(payload);
 
     clearLogin();
-    if (mode === "session") sessionStorage.setItem(C.storageKeys.login, raw);
-    else localStorage.setItem(C.storageKeys.login, raw);
+
+    if (mode === "session") {
+      sessionStorage.setItem(C.storageKeys.login, raw);
+      return;
+    }
+
+    // Für „heute“ und „dauerhaft“ wird der Sitzungstoken in einem
+    // versionsunabhängigen lokalen Schlüssel gespeichert. Ein zweiter
+    // Schlüssel dient als Rückfallebene, falls ein Browser beim Aktualisieren
+    // nur einen einzelnen Eintrag verliert.
+    localStorage.setItem(C.storageKeys.login, raw);
+    localStorage.setItem(loginBackupKey(), raw);
   }
 
   function getLogin() {
     let login = null;
+    let raw = "";
+
     try {
-      login = JSON.parse(
+      raw =
         sessionStorage.getItem(C.storageKeys.login) ||
         localStorage.getItem(C.storageKeys.login) ||
-        "null"
-      );
+        localStorage.getItem(loginBackupKey()) ||
+        "";
+
+      login = raw ? JSON.parse(raw) : null;
     } catch {}
 
     if (!login?.valid || !login.sessionToken) return null;
@@ -63,6 +81,15 @@ window.AVT_STORE = (function () {
       }
     }
 
+    // Nach einem normalen Seiten-Refresh den primären lokalen Schlüssel
+    // gegebenenfalls aus der Rückfallebene wiederherstellen.
+    if (
+      login.mode !== "session" &&
+      !localStorage.getItem(C.storageKeys.login)
+    ) {
+      localStorage.setItem(C.storageKeys.login, JSON.stringify(login));
+    }
+
     return login;
   }
 
@@ -73,6 +100,7 @@ window.AVT_STORE = (function () {
   function clearLogin() {
     sessionStorage.removeItem(C.storageKeys.login);
     localStorage.removeItem(C.storageKeys.login);
+    localStorage.removeItem(loginBackupKey());
   }
 
   return { load, save, reset, setLogin, getLogin, getSessionToken, clearLogin };

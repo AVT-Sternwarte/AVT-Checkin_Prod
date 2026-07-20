@@ -37,13 +37,49 @@
   let lastSuccessCheckin = null;
   let donationNotice = null;
 
+  function eventDateText() {
+    return C.event.dateDisplay || U.date(C.event.date);
+  }
+
+  function eventTimeText() {
+    return U.time(C.event.time);
+  }
+
+  function showVisibleClientError(message) {
+    const text = String(message || "Ein unerwarteter Fehler ist aufgetreten.");
+    const loginError = $("loginError");
+
+    if (loginError && !$("loginView")?.classList.contains("hidden")) {
+      loginError.textContent = text;
+      return;
+    }
+
+    const toastTarget = $("toast");
+    if (toastTarget) toast(text);
+  }
+
+  window.addEventListener("error", event => {
+    showVisibleClientError(
+      event?.error?.message ||
+      event?.message ||
+      "Die Anwendung konnte nicht vollständig gestartet werden."
+    );
+  });
+
+  window.addEventListener("unhandledrejection", event => {
+    showVisibleClientError(
+      event?.reason?.message ||
+      "Eine Serveranfrage konnte nicht verarbeitet werden."
+    );
+  });
+
   function init() {
     // Die Veranstaltungsdetails werden seit test.9 nur noch im Info-Dialog
     // angezeigt. Optionale Elemente werden nur befüllt, wenn sie existieren.
     const eventTitleElement = $("eventTitle");
     const eventTimeElement = $("eventTime");
     if (eventTitleElement) eventTitleElement.textContent = C.event.title;
-    if (eventTimeElement) eventTimeElement.textContent = `${U.date(C.event.date)} · ${C.event.time} Uhr`;
+    if (eventTimeElement) eventTimeElement.textContent = `${eventDateText()} · ${eventTimeText()} Uhr`;
 
     document.querySelectorAll("[data-nav]").forEach(button => {
       button.addEventListener("click", () => nav(button.dataset.nav));
@@ -59,6 +95,7 @@
     $("passwordToggle").addEventListener("click", togglePasswordVisibility);
     $("eventInfoTopBtn").addEventListener("click", showEventDetails);
     $("refreshBtn").addEventListener("click", refreshLocalData);
+    $("helpBtn").addEventListener("click", openHelp);
     $("logoutTopBtn").addEventListener("click", logout);
     $("saveDonationBtn").addEventListener("click", saveDonation);
     $("searchInput").addEventListener("input", renderSearch);
@@ -122,6 +159,7 @@
       C.event.id = snapshot.event.id;
       C.event.title = snapshot.event.title;
       C.event.date = snapshot.event.date;
+      C.event.dateDisplay = snapshot.event.dateDisplay || "";
       C.event.time = snapshot.event.time;
       C.event.maxPersons = snapshot.event.maxPersons;
     }
@@ -864,17 +902,36 @@
 
   async function login(event) {
     event.preventDefault();
-    const form = event.currentTarget;
-    const button = form.querySelector('button[type="submit"]');
-    const password = $("password").value;
-    const mode = new FormData(form).get("mode") || "day";
 
-    $("loginError").textContent = "";
-    button.disabled = true;
-    button.textContent = "Anmeldung wird geprüft …";
+    const form = event.currentTarget;
+    const button =
+      $("loginSubmitBtn") ||
+      form.querySelector('button[type="submit"]') ||
+      form.querySelector("button.primary");
+    const errorTarget = $("loginError");
 
     try {
+      if (!button) {
+        throw new Error("Der Anmeldebutton konnte nicht initialisiert werden. Bitte die Seite einmal vollständig neu laden.");
+      }
+
+      const password = String($("password")?.value || "");
+      const mode = new FormData(form).get("mode") || "day";
+
+      if (!password) {
+        throw new Error("Bitte geben Sie das Check-in-Passwort ein.");
+      }
+
+      errorTarget.textContent = "";
+      button.disabled = true;
+      button.textContent = "Anmeldung wird geprüft …";
+
       const result = await AVT_BACKEND.login(password, mode);
+
+      if (!result?.sessionToken) {
+        throw new Error("Das Backend hat keinen gültigen Sitzungstoken zurückgegeben.");
+      }
+
       S.setLogin({
         mode,
         sessionToken: result.sessionToken,
@@ -889,13 +946,18 @@
       $("passwordToggle").querySelector(".password-eye-open").classList.remove("hidden");
       $("passwordToggle").querySelector(".password-eye-closed").classList.add("hidden");
       document.activeElement?.blur();
+
       showMain();
       forcePageTop();
     } catch (error) {
-      $("loginError").textContent = error.message || "Anmeldung fehlgeschlagen.";
+      if (errorTarget) {
+        errorTarget.textContent = error?.message || "Anmeldung fehlgeschlagen.";
+      }
     } finally {
-      button.disabled = false;
-      button.textContent = "Anmelden";
+      if (button) {
+        button.disabled = false;
+        button.textContent = "Anmelden";
+      }
     }
   }
 
@@ -979,6 +1041,11 @@
       button.classList.toggle("active", isActive);
       button.setAttribute("aria-current", isActive ? "page" : "false");
     });
+  }
+
+  function openHelp() {
+    SC.stop();
+    window.location.assign("help.html");
   }
 
   async function refreshLocalData() {
@@ -1065,7 +1132,7 @@
     $("modalBody").innerHTML = `
       <div class="card" style="margin:0;padding:12px;">
         <p><strong>${U.esc(C.event.title)}</strong></p>
-        <p>${U.date(C.event.date)} · ${U.esc(C.event.time)} Uhr</p>
+        <p>${U.esc(eventDateText())} · ${U.esc(eventTimeText())} Uhr</p>
         <p>Produktiver Mehrgerätebetrieb</p>
       </div>
       <div class="card" style="margin:12px 0 0 0;padding:12px;">

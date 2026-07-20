@@ -526,3 +526,70 @@ body.force-top-reset{
 #operationNotice > .offline-synced-indicator{
   margin:0 0 10px;
 }
+
+
+/* Produktivkorrekturen 1.0.0-rc.2 */
+.head-actions{
+  flex:0 0 auto;
+  gap:6px;
+}
+.head-btn{
+  width:44px;
+  height:44px;
+  border-radius:12px;
+}
+.head-btn img{
+  width:23px;
+  height:23px;
+}
+.head-btn svg{
+  width:25px;
+  height:25px;
+}
+@media(max-width:430px){
+  .topbar{
+    padding:8px max(8px,env(safe-area-inset-left)) 8px max(8px,env(safe-area-inset-right));
+    gap:7px;
+  }
+  .brand{
+    gap:8px;
+    min-width:0;
+  }
+  .brand img{
+    width:42px;
+    height:42px;
+    flex:0 0 auto;
+  }
+  .brand strong{
+    display:block;
+    font-size:.93rem;
+    white-space:nowrap;
+  }
+  .brand small{
+    font-size:.66rem;
+    white-space:nowrap;
+  }
+  .head-actions{
+    gap:4px;
+  }
+  .head-btn{
+    width:40px;
+    height:40px;
+    border-radius:11px;
+  }
+  .head-btn img{
+    width:21px;
+    height:21px;
+  }
+  .head-btn svg{
+    width:23px;
+    height:23px;
+  }
+}
+@media(max-width:350px){
+  .brand strong{font-size:.86rem}
+  .brand small{font-size:.61rem}
+  .brand img{width:38px;height:38px}
+  .head-btn{width:38px;height:38px}
+  .head-actions{gap:3px}
+}

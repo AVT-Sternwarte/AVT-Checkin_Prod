@@ -10,16 +10,29 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon-32.png">
-<link rel="stylesheet" href="styles.css?v=1.0.0-rc.1">
+<link rel="stylesheet" href="styles.css?v=1.0.0-rc.2">
 </head>
 <body>
 <div class="app-shell">
 <header class="topbar">
   <div class="brand">
     <img src="icons/header-logo.png" alt="Logo der Astronomischen Vereinigung Tübingen e. V.">
-    <div><strong>AVT Check-in</strong><small>Version 1.0.0-rc.1</small></div>
+    <div><strong>AVT Check-in</strong><small>Version 1.0.0-rc.2</small></div>
   </div>
-  <div class="head-actions hidden" id="headActions"><button id="logoutTopBtn" class="head-btn" type="button" aria-label="Abmelden" title="Abmelden"><img src="icons/power-icon.png" alt=""></button><button id="refreshBtn" class="head-btn" type="button" aria-label="Statistik aktualisieren" title="Statistik aktualisieren"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M25 9a11 11 0 1 1-4-3.2"/><path d="M24 3v8h-8"/></svg></button></div>
+  <div class="head-actions hidden" id="headActions">
+    <button id="logoutTopBtn" class="head-btn" type="button" aria-label="Abmelden" title="Abmelden">
+      <img src="icons/power-icon.png" alt="">
+    </button>
+    <button id="refreshBtn" class="head-btn" type="button" aria-label="Gemeinsamen Stand aktualisieren" title="Gemeinsamen Stand aktualisieren">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M25 9a11 11 0 1 1-4-3.2"></path>
+        <path d="M24 3v8h-8"></path>
+      </svg>
+    </button>
+    <button id="helpBtn" class="head-btn" type="button" aria-label="Hilfe öffnen" title="Hilfe öffnen">
+      <img src="icons/help-icon.svg" alt="">
+    </button>
+  </div>
 </header>
 
 <main>
@@ -49,7 +62,7 @@
         <label><input type="radio" name="mode" value="day" checked> Für heute</label>
         <label><input type="radio" name="mode" value="permanent"> Dauerhaft</label>
       </fieldset>
-      <button class="primary full">Anmelden</button>
+      <button id="loginSubmitBtn" class="primary full" type="submit">Anmelden</button>
       <p id="loginError" class="error"></p>
     </form>
   </div>
@@ -203,10 +216,10 @@
 </div>
 
 <script src="js/jsQR.js?v=1.4.0"></script>
-<script src="js/config.js?v=1.0.0-rc.1"></script>
-<script src="js/backend.js?v=1.0.0-rc.1"></script>
-<script src="js/storage.js?v=1.0.0-rc.1"></script>
-<script src="js/scanner.js?v=1.0.0-rc.1"></script>
-<script src="js/app.js?v=1.0.0-rc.1"></script>
+<script src="js/config.js?v=1.0.0-rc.2"></script>
+<script src="js/backend.js?v=1.0.0-rc.2"></script>
+<script src="js/storage.js?v=1.0.0-rc.2"></script>
+<script src="js/scanner.js?v=1.0.0-rc.2"></script>
+<script src="js/app.js?v=1.0.0-rc.2"></script>
 </body>
 </html>

@@ -1,16 +1,23 @@
-# AVT Check-in – Produktivkandidat 1.0.0-rc.1
+# AVT Check-in Frontend 1.0.0-rc.2
 
-Frontend für GitHub Pages. Die Anwendung wird erst funktionsfähig, nachdem in
-`js/config.js` die `/exec`-Adresse des produktiven Check-in-Backends eingetragen
-und `enabled: true` gesetzt wurde.
+Produktivfrontend für GitHub Pages.
 
-Die Produktivdaten und Voranmeldungen sind nicht in diesem Repository enthalten.
-Sie werden nach erfolgreicher Anmeldung aus dem Apps-Script-Backend geladen.
+## Vor dem Hochladen
 
-Wichtig: Diese Fassung ist ein Release Candidate. Vor dem echten Einsatz muss
-der vollständige Produktivtest gemäß der mitgelieferten Dokumentation erfolgreich
-abgeschlossen werden.
+In `js/config.js`:
 
-## QR-Scanner und Offlinebetrieb
+- die bestehende `/exec`-Adresse des Check-in-Backends eintragen
+- `enabled: true` setzen
 
-Die QR-Bibliothek wird beim ersten Onlineaufruf versionsfest geladen und durch den Service Worker zwischengespeichert. Die Produktivseite sollte deshalb auf jedem verwendeten Gerät mindestens einmal mit stabiler Internetverbindung vollständig geöffnet werden, bevor ein Offlineeinsatz getestet wird.
+Danach den **gesamten Inhalt dieses Ordners** in die Wurzel des
+Produktivrepositorys hochladen.
+
+## Änderungen in 1.0.0-rc.2
+
+- Login-Blocker behoben: Der Anmeldebutton ist ausdrücklich ein Submit-Button.
+- Sichtbare Fehlermeldung bei Frontend- oder Loginfehlern.
+- Dauerhafte Anmeldung gegen normale Seitenaktualisierung abgesichert.
+- Datum und Uhrzeit in den Veranstaltungsdetails robust deutsch formatiert.
+- Integrierte `help.html`.
+- Eigener Fragezeichen-SVG-Button in der Kopfzeile.
+- Abmelden, Aktualisieren und Hilfe passen auf dem iPhone 12 mini nebeneinander.
