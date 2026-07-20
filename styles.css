@@ -528,7 +528,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.5 */
+/* Produktivkorrekturen 1.0.0-rc.6 */
 .head-actions{
   flex:0 0 auto;
   gap:6px;
@@ -595,7 +595,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.5 */
+/* Produktivkorrekturen 1.0.0-rc.6 */
 .registration-blocked-card{
   border:2px solid #d7a928;
   background:#fff8df;
@@ -614,7 +614,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.5 */
+/* Produktivkorrekturen 1.0.0-rc.6 */
 .compact-safe-capacity{
   display:flex;
   align-items:baseline;
@@ -662,7 +662,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.5 */
+/* Produktivkorrekturen 1.0.0-rc.6 */
 .compact-capacity{
   white-space:nowrap;
 }
@@ -743,5 +743,39 @@ body.force-top-reset{
   .event-info-svg{
     width:24px;
     height:24px;
+  }
+}
+
+
+/* Produktivkorrektur 1.0.0-rc.6:
+   Die vier Haupt-Infofelder bestehen nur noch aus Überschrift und Wert
+   und erhalten deshalb eine deutlich geringere Höhe. */
+.summary{
+  gap:10px;
+}
+.summary-card{
+  min-height:72px;
+  padding:9px 12px;
+  justify-content:center;
+}
+.summary-card > small:first-child{
+  margin-bottom:3px;
+}
+.summary-card strong{
+  line-height:1.05;
+}
+@media(max-width:430px){
+  .summary{
+    gap:9px;
+  }
+  .summary-card{
+    min-height:70px;
+    padding:8px 10px;
+  }
+}
+@media(max-width:350px){
+  .summary-card{
+    min-height:66px;
+    padding:7px 9px;
   }
 }
