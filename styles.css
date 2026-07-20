@@ -528,7 +528,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.3 */
+/* Produktivkorrekturen 1.0.0-rc.4 */
 .head-actions{
   flex:0 0 auto;
   gap:6px;
@@ -595,7 +595,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.3 */
+/* Produktivkorrekturen 1.0.0-rc.4 */
 .registration-blocked-card{
   border:2px solid #d7a928;
   background:#fff8df;
@@ -611,4 +611,52 @@ body.force-top-reset{
   margin-bottom:0;
   padding-top:8px;
   border-top:1px solid #d7a92866;
+}
+
+
+/* Produktivkorrekturen 1.0.0-rc.4 */
+.compact-safe-capacity{
+  display:flex;
+  align-items:baseline;
+  flex-wrap:nowrap;
+  white-space:nowrap;
+}
+.compact-event-card.capacity-at-limit{
+  background:#fff3d8;
+  border-color:#e0ad42;
+}
+.compact-event-card.capacity-over-limit{
+  background:#fde5e6;
+  border-color:#c9464f;
+  color:#8d151d;
+}
+.compact-event-card.capacity-over-limit .event-info-svg{
+  stroke:#8d151d;
+}
+.compact-event-card.capacity-over-limit .event-info-fill{
+  fill:#8d151d;
+}
+.modal.capacity-warning{
+  border:3px solid #e0ad42;
+  background:#fff8df;
+}
+.modal.capacity-danger{
+  border:3px solid #c9464f;
+  background:#fde5e6;
+}
+.modal.capacity-danger h2{
+  color:#8d151d;
+}
+.backend-status{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+@media(max-width:370px){
+  .compact-capacity{font-size:.91rem}
+  .compact-safe-capacity{font-size:.79rem;letter-spacing:-.01em}
+  .event-info-btn{width:38px;height:38px}
+  .event-info-svg{width:30px;height:30px}
+  .compact-event-card{gap:6px;padding:8px 9px}
+  .backend-status{font-size:.75rem;padding:7px 9px}
 }

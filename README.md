@@ -1,15 +1,9 @@
-# AVT Check-in Frontend 1.0.0-rc.3
+# AVT Check-in Frontend 1.0.0-rc.4
 
-Vor dem Hochladen in `js/config.js`:
+Die produktive Backendadresse ist bereits in `js/config.js` eingetragen und
+`enabled` steht auf `true`.
 
-- bestehende `/exec`-Adresse eintragen
-- `enabled: true` setzen
+Den vollständigen Inhalt dieses Ordners in die Wurzel des GitHub-
+Produktivrepositorys hochladen.
 
-Danach den vollständigen Ordnerinhalt hochladen.
-
-Produktivregeln:
-
-- keine QR-Auswahl aus Bilddateien
-- kein Reset erfasster Check-ins
-- Check-in nur bei Freigabe durch `REGISTRATION_ENABLED_EVENT_TYPES`
-- ausschließlich transparentes AVT-Logo
+Die integrierte `help.html` beschreibt den Funktionsstand dieser Version.

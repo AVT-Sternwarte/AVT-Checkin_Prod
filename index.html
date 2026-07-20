@@ -10,14 +10,14 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon-32.png">
-<link rel="stylesheet" href="styles.css?v=1.0.0-rc.3">
+<link rel="stylesheet" href="styles.css?v=1.0.0-rc.4">
 </head>
 <body>
 <div class="app-shell">
 <header class="topbar">
   <div class="brand">
     <img src="icons/header-logo.png" alt="Logo der Astronomischen Vereinigung Tübingen e. V.">
-    <div><strong>AVT Check-in</strong><small>Version 1.0.0-rc.3</small></div>
+    <div><strong>AVT Check-in</strong><small>Version 1.0.0-rc.4</small></div>
   </div>
   <div class="head-actions hidden" id="headActions">
     <button id="logoutTopBtn" class="head-btn" type="button" aria-label="Abmelden" title="Abmelden">
@@ -84,8 +84,8 @@
   </section>
   <section id="eventSummaryCard" class="event-card compact-event-card">
     <div class="event-compact-lines">
-      <div class="capacity compact-capacity"><strong id="presentTop">0</strong> von <strong>65</strong> Personen eingecheckt</div>
-      <div class="safe-capacity compact-safe-capacity">Sicher freie Plätze: <strong id="safeFreeTop">0</strong></div>
+      <div class="capacity compact-capacity"><strong id="presentTop">0</strong> von max. <strong id="maxPersonsTop">65</strong> Personen eingecheckt</div>
+      <div class="safe-capacity compact-safe-capacity"><span>Sicher freie Plätze: <strong id="safeFreeTop">0</strong></span><span class="waitlist-top-separator"> · </span><span>Warteliste: <strong id="waitlistOpenTop">0</strong></span></div>
     </div>
     <button id="eventInfoTopBtn" class="event-info-btn" type="button" aria-label="Veranstaltungsdetails anzeigen" title="Veranstaltungsdetails anzeigen">
       <svg class="event-info-svg" viewBox="0 0 32 32" aria-hidden="true">
@@ -227,10 +227,10 @@
 </div>
 
 <script src="js/jsQR.js?v=1.4.0"></script>
-<script src="js/config.js?v=1.0.0-rc.3"></script>
-<script src="js/backend.js?v=1.0.0-rc.3"></script>
-<script src="js/storage.js?v=1.0.0-rc.3"></script>
-<script src="js/scanner.js?v=1.0.0-rc.3"></script>
-<script src="js/app.js?v=1.0.0-rc.3"></script>
+<script src="js/config.js?v=1.0.0-rc.4"></script>
+<script src="js/backend.js?v=1.0.0-rc.4"></script>
+<script src="js/storage.js?v=1.0.0-rc.4"></script>
+<script src="js/scanner.js?v=1.0.0-rc.4"></script>
+<script src="js/app.js?v=1.0.0-rc.4"></script>
 </body>
 </html>

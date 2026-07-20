@@ -1,6 +1,6 @@
 "use strict";
 window.AVT_CONFIG = Object.freeze({
-  version: "1.0.0-rc.3",
+  version: "1.0.0-rc.4",
   qrPrefix: "AVT-CHECKIN-V1:",
   backend: {
     // Hier nach der Apps-Script-Bereitstellung die Produktiv-Web-App-URL mit /exec eintragen.
@@ -10,7 +10,7 @@ window.AVT_CONFIG = Object.freeze({
     pollSeconds: 15
   },
   saveFlow: {
-    warningSeconds: 8,
+    warningSeconds: 10,
     requestTimeoutSeconds: 30,
     verificationSeconds: 3,
     offlineFallbackEnabled: true
@@ -23,7 +23,8 @@ window.AVT_CONFIG = Object.freeze({
     time: "",
     maxPersons: 65,
     registrationEnabled: null,
-    registrationDisabledReason: ""
+    registrationDisabledReason: "",
+    backendVersion: ""
   },
   prices: {
     adult: 5,

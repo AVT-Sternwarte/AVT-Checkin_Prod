@@ -36,6 +36,8 @@
   let saveDelayResolve = null;
   let lastSuccessCheckin = null;
   let donationNotice = null;
+  let transientSyncNotice = "";
+  let backendVersion = "";
 
   function eventDateText() {
     return C.event.dateDisplay || U.date(C.event.date);
@@ -147,19 +149,34 @@
 
   function applySnapshot(snapshot) {
     if (!snapshot) return;
+
+    backendVersion = String(snapshot.version || "");
+    const versionCompatible = backendVersion === C.version;
+
     if (snapshot.event) {
       C.event.id = snapshot.event.id;
       C.event.title = snapshot.event.title;
       C.event.date = snapshot.event.date;
       C.event.dateDisplay = snapshot.event.dateDisplay || "";
       C.event.time = snapshot.event.time;
-      C.event.maxPersons = snapshot.event.maxPersons;
-      C.event.registrationEnabled =
-        snapshot.event.registrationEnabled === undefined
-          ? true
-          : snapshot.event.registrationEnabled === true;
-      C.event.registrationDisabledReason =
-        String(snapshot.event.registrationDisabledReason || "");
+      C.event.maxPersons = Number(snapshot.event.maxPersons || C.event.maxPersons || 65);
+      C.event.backendVersion = backendVersion;
+
+      const explicitlyEnabled = snapshot.event.registrationEnabled === true;
+      C.event.registrationEnabled = versionCompatible && explicitlyEnabled;
+
+      if (!versionCompatible) {
+        C.event.registrationDisabledReason = backendVersion
+          ? `Frontend ${C.version} und Backend ${backendVersion} sind nicht kompatibel. Bitte das Check-in-Backend aktualisieren.`
+          : "Die Backendversion und die Freigabe der Veranstaltungsart konnten nicht geprüft werden.";
+      } else if (snapshot.event.registrationEnabled !== true) {
+        C.event.registrationDisabledReason = String(
+          snapshot.event.registrationDisabledReason ||
+          "Für die aktuelle Veranstaltungsart ist keine Voranmeldung und kein Check-in vorgesehen."
+        );
+      } else {
+        C.event.registrationDisabledReason = "";
+      }
     }
     if (snapshot.prices) Object.assign(C.prices, snapshot.prices);
     if (snapshot.familyRule) Object.assign(C.familyRule, snapshot.familyRule);
@@ -189,7 +206,7 @@
           lastSuccessCheckin = {
             ...lastSuccessCheckin,
             ...serverCheckin,
-            offline: true
+            offline: Boolean(serverCheckin.offline)
           };
         }
       }
@@ -231,7 +248,7 @@
     return parts.length ? `${parts.join(" und ")} ausstehend` : "0 ausstehend";
   }
 
-  function showOnlineStatus(text = "Online · Produktivbetrieb") {
+  function showOnlineStatus(text = "Online") {
     const time = syncTimeLabel();
     setBackendStatus(
       "online",
@@ -418,8 +435,9 @@
       }
 
       try {
+        let queueSyncResult = null;
         if (AVT_BACKEND.queueCount()) {
-          await syncOfflineQueue({ quiet: true });
+          queueSyncResult = await syncOfflineQueue({ quiet: true });
         }
 
         const snapshot = await AVT_BACKEND.state();
@@ -428,6 +446,11 @@
         onlineState = "online";
         lastSyncAt = new Date();
         showOnlineStatus();
+
+        if (reason === "timer" && !(queueSyncResult && queueSyncResult.synced)) {
+          clearTransientSuccessNotices();
+        }
+
         renderSharedState();
 
         if (!quiet) toast("Gemeinsamer Stand aktualisiert.");
@@ -471,7 +494,9 @@
   }
 
   async function syncOfflineQueue({ quiet = false } = {}) {
-    if (!window.AVT_BACKEND?.isConfigured() || !AVT_BACKEND.queueCount()) return;
+    if (!window.AVT_BACKEND?.isConfigured() || !AVT_BACKEND.queueCount()) {
+      return { synced: 0, failed: 0 };
+    }
 
     try {
       const result = await AVT_BACKEND.syncQueue();
@@ -480,37 +505,44 @@
       if (result.failed) {
         showOfflineStatus("Synchronisierung offen");
         if (!quiet) toast(`${outstandingText()} – Synchronisierung noch offen.`);
-        return;
+        return result;
       }
 
       lastSyncAt = new Date();
-      showOnlineStatus("Online · Offline-Vorgänge synchronisiert");
+      showOnlineStatus();
 
       const syncedOperations = result.syncedOperations || [];
-      const donationOperations = syncedOperations.filter(operation => operation.action === "donation");
+      if (syncedOperations.length) {
+        transientSyncNotice = synchronizedOperationsMessage(syncedOperations);
+        donationNotice = null;
 
-      if (donationOperations.length) {
-        donationNotice = {
-          state: "synced",
-          count: donationOperations.length,
-          operationId: donationOperations[donationOperations.length - 1].operationId
-        };
+        if (
+          lastSuccessCheckin?.operationId &&
+          syncedOperations.some(operation =>
+            operation.operationId === lastSuccessCheckin.operationId
+          )
+        ) {
+          lastSuccessCheckin.offline = false;
+        }
       }
 
       renderSharedState();
       updateSuccessSyncBanner();
       updateDonationSyncBanner();
 
-      if (result.synced) {
-        toast(synchronizedOperationsMessage(syncedOperations));
+      if (result.synced && !quiet) {
+        toast(transientSyncNotice);
       }
+
+      return result;
     } catch (error) {
       if (AVT_BACKEND.isAuthError(error)) {
         handleAuthenticationFailure(error.message);
-        return;
+        return { synced: 0, failed: AVT_BACKEND.queueCount() };
       }
       showOfflineStatus("Offline");
       if (!quiet) toast("Synchronisierung derzeit nicht möglich.");
+      return { synced: 0, failed: AVT_BACKEND.queueCount() };
     }
   }
 
@@ -519,7 +551,7 @@
   }
 
   function savingWarningMilliseconds() {
-    return Math.max(1, Number(C.saveFlow?.warningSeconds || 8)) * 1000;
+    return Math.max(1, Number(C.saveFlow?.warningSeconds || 10)) * 1000;
   }
 
   function verificationMilliseconds() {
@@ -651,15 +683,16 @@
     lastSyncAt = new Date();
     showOnlineStatus();
 
-    if (operation.action === "donation" && uiMode === "queued") {
-      donationNotice = {
-        state: "synced",
-        count: 1,
-        operationId: operation.operationId
-      };
-    }
-
     if (uiMode === "queued") {
+      transientSyncNotice = text.queuedSynced;
+      donationNotice = null;
+
+      if (
+        lastSuccessCheckin?.operationId === operation.operationId
+      ) {
+        lastSuccessCheckin.offline = false;
+      }
+
       renderSharedState();
       updateSuccessSyncBanner();
       updateDonationSyncBanner();
@@ -684,6 +717,7 @@
     let requestFailed = false;
     let requestError = null;
     let uiMode = "waiting";
+    let warningShown = false;
     let verificationRunning = false;
     let completeResolve = null;
 
@@ -696,14 +730,14 @@
       completed = true;
       acceptManagedSaveResult(result, operation, uiMode);
       closeSaveDelayChoice("saved");
-      completeResolve({ status: "saved", result, operation });
+      completeResolve({ status: "saved", result, operation, delayed: warningShown });
     }
 
     function markRejected(error) {
       if (completed) return;
       completed = true;
       closeSaveDelayChoice("rejected");
-      completeResolve({ status: "rejected", error, operation });
+      completeResolve({ status: "rejected", error, operation, delayed: warningShown });
     }
 
     function markDuplicate(snapshot, existing) {
@@ -720,7 +754,8 @@
         status: "duplicate",
         operation,
         existing,
-        data: snapshot
+        data: snapshot,
+        delayed: warningShown
       });
     }
 
@@ -809,6 +844,8 @@
         return outcome;
       }
 
+      warningShown = true;
+
       const choice = await showSaveDelayChoice(
         action,
         requestFailed,
@@ -829,6 +866,14 @@
 
       if (choice === "offline") {
         uiMode = "queued";
+
+        if (operation.payload?.checkin) {
+          operation.payload.checkin.offline = true;
+        }
+        if (operation.payload?.donation) {
+          operation.payload.donation.offline = true;
+        }
+
         AVT_BACKEND.enqueuePrepared(operation);
         startVerificationLoop();
         hideSavingOverlay();
@@ -892,7 +937,7 @@
       return '<div id="syncStateBanner" class="offline-indicator">Offline gespeichert – noch nicht synchronisiert</div>';
     }
 
-    return '<div id="syncStateBanner" class="offline-synced-indicator">Die offline zwischengespeicherten Check-ins wurden erfolgreich synchronisiert.</div>';
+    return "";
   }
 
   function updateSuccessSyncBanner() {
@@ -913,27 +958,39 @@
     }
   }
 
-  function donationNoticeHtml() {
-    if (!donationNotice) return "";
+  function operationNoticeHtml() {
+    if (transientSyncNotice) {
+      return `<div class="offline-synced-indicator">${U.esc(transientSyncNotice)}</div>`;
+    }
 
-    if (donationNotice.state === "pending") {
+    if (donationNotice?.state === "pending") {
       return '<div class="offline-indicator">Spende offline gespeichert – noch nicht synchronisiert</div>';
     }
 
-    const text = donationNotice.count === 1
-      ? "Die offline zwischengespeicherte Spende wurde erfolgreich synchronisiert."
-      : "Die offline zwischengespeicherten Spenden wurden erfolgreich synchronisiert.";
-
-    return `<div class="offline-synced-indicator">${text}</div>`;
+    return "";
   }
 
   function updateDonationSyncBanner() {
     const target = $("operationNotice");
     if (!target) return;
 
-    const html = donationNoticeHtml();
+    const html = operationNoticeHtml();
     target.innerHTML = html;
     target.classList.toggle("hidden", !html);
+  }
+
+  function clearTransientSuccessNotices() {
+    transientSyncNotice = "";
+
+    if (
+      lastSuccessCheckin?.operationId &&
+      !isCheckinStillQueued(lastSuccessCheckin)
+    ) {
+      lastSuccessCheckin.offline = false;
+    }
+
+    $("syncStateBanner")?.remove();
+    updateDonationSyncBanner();
   }
 
   function togglePasswordVisibility() {
@@ -1214,8 +1271,22 @@
 
   function updateHeaderStats() {
     const currentStats = stats();
+    const maximum = Number(C.event.maxPersons || 0);
+    const card = $("eventSummaryCard");
+
     $("presentTop").textContent = currentStats.present;
+    $("maxPersonsTop").textContent = maximum;
     $("safeFreeTop").textContent = currentStats.safe;
+    $("waitlistOpenTop").textContent = currentStats.waitOpen;
+
+    card.classList.toggle(
+      "capacity-at-limit",
+      maximum > 0 && currentStats.present === maximum
+    );
+    card.classList.toggle(
+      "capacity-over-limit",
+      maximum > 0 && currentStats.present > maximum
+    );
   }
 
   function showEventDetails() {
@@ -1229,8 +1300,11 @@
       </div>
       <div class="card" style="margin:12px 0 0 0;padding:12px;">
         <dl class="detail-grid">
-          <dt>Eingecheckt</dt><dd>${currentStats.present} / ${C.event.maxPersons}</dd>
+          <dt>Eingecheckt</dt><dd>${currentStats.present} / max. ${C.event.maxPersons}</dd>
           <dt>Sicher freie Plätze</dt><dd>${currentStats.safe}</dd>
+          <dt>Warteliste offen</dt><dd>${currentStats.waitOpen}</dd>
+          <dt>Frontend</dt><dd>${U.esc(C.version)}</dd>
+          <dt>Backend</dt><dd>${U.esc(backendVersion || "nicht ermittelt")}</dd>
         </dl>
       </div>`;
     $("modalConfirm").textContent = "Schließen";
@@ -1252,7 +1326,7 @@
     $("presentTop").textContent = currentStats.present;
     $("summary").innerHTML = [
       summaryCard("Anwesend", currentStats.present, `von ${C.event.maxPersons}`),
-      summaryCard("Sicher frei", currentStats.safe, `${currentStats.expected} regulär erwartet`),
+      summaryCard("Sicher frei", currentStats.safe, ""),
       summaryCard("Eintritt", U.euro(currentStats.entry), "erfasst"),
       summaryCard("Spenden", U.euro(currentStats.donations), "separat")
     ].join("");
@@ -1260,7 +1334,8 @@
   }
 
   function summaryCard(label, value, note) {
-    return `<div class="summary-card"><small>${U.esc(label)}</small><strong>${U.esc(value)}</strong><small>${U.esc(note)}</small></div>`;
+    const noteHtml = note ? `<small>${U.esc(note)}</small>` : "";
+    return `<div class="summary-card"><small>${U.esc(label)}</small><strong>${U.esc(value)}</strong>${noteHtml}</div>`;
   }
 
   function resetCamera() {
@@ -1720,6 +1795,69 @@
   }
 
 
+  function persistSuccessfulCheckin(checkin, manual = false) {
+    checkin.offline = Boolean(checkin.offline);
+
+    if (manual) {
+      const index = data.manual.findIndex(item =>
+        item.operationId === checkin.operationId ||
+        item.id === checkin.id
+      );
+      if (index >= 0) data.manual[index] = U.clone(checkin);
+      else data.manual.push(U.clone(checkin));
+    } else {
+      data.checkins[checkin.token] = U.clone(checkin);
+    }
+
+    S.save(data);
+  }
+
+  function persistSuccessfulDonation(donation) {
+    const index = data.donations.findIndex(item =>
+      item.operationId === donation.operationId
+    );
+    if (index >= 0) data.donations[index] = U.clone(donation);
+    else data.donations.push(U.clone(donation));
+    S.save(data);
+  }
+
+  function schedulePostSaveRefresh() {
+    window.setTimeout(() => {
+      refreshSharedState({ quiet: true, reason: "post-save" }).catch(() => {});
+    }, 50);
+  }
+
+  function capacityConfirmation(additionalPersons, baseMessage, defaultTitle) {
+    const currentStats = stats();
+    const projected = currentStats.present + Number(additionalPersons || 0);
+    const maximum = Number(C.event.maxPersons || 0);
+
+    if (!maximum || projected < maximum) {
+      return {
+        title: defaultTitle,
+        message: baseMessage,
+        tone: ""
+      };
+    }
+
+    if (projected === maximum) {
+      return {
+        title: "Maximale Kapazität wird erreicht",
+        message:
+          `Durch diesen Check-in sind anschließend ${projected} von maximal ${maximum} Personen eingecheckt.\n\n${baseMessage}`,
+        tone: "capacity-warning"
+      };
+    }
+
+    return {
+      title: "Maximale Kapazität wird überschritten",
+      message:
+        `Durch diesen Check-in wären anschließend ${projected} von maximal ${maximum} Personen eingecheckt. ` +
+        `Die Kapazität würde um ${projected - maximum} Personen überschritten.\n\n${baseMessage}`,
+      tone: "capacity-danger"
+    };
+  }
+
   async function confirmOfflineOperation(type = "checkin") {
     if (navigator.onLine && onlineState !== "offline") return true;
 
@@ -1765,7 +1903,21 @@
       message = `Frühere Wartelistenanmeldungen sind noch offen. Trotzdem fortfahren? ${message}`;
     }
 
-    if (!(await confirmBox("Check-in bestätigen", message, "Einchecken"))) return;
+    const confirmation = capacityConfirmation(
+      U.sumCounts(counts),
+      message,
+      "Check-in bestätigen"
+    );
+
+    if (!(
+      await confirmBox(
+        confirmation.title,
+        confirmation.message,
+        "Einchecken",
+        confirmation.tone
+      )
+    )) return;
+
     if (!(await confirmOfflineOperation("checkin"))) return;
 
     const checkin = {
@@ -1813,15 +1965,20 @@
         }
 
         checkin.offline = result.status === "queued";
+        persistSuccessfulCheckin(checkin, false);
+        schedulePostSaveRefresh();
 
-        if (result.status === "queued") {
-          data.checkins[current.token] = checkin;
-          S.save(data);
+        if (result.delayed && result.status === "saved") {
+          current = null;
+          counts = null;
+          nav("home", { forceTop: true });
+          toast("Check-in wurde gespeichert.");
+          restartPolling();
+          return;
         }
       }
     } else {
-      data.checkins[current.token] = checkin;
-      S.save(data);
+      persistSuccessfulCheckin(checkin, false);
     }
 
     restartPolling();
@@ -1845,7 +2002,22 @@
     }
     if (!validateCorrection()) return;
 
-    if (!(await confirmBox("Unangemeldeten Check-in bestätigen", `${U.sumCounts(counts)} Personen mit ${U.euro(chosenPrice())} Eintritt erfassen?`, "Erfassen"))) return;
+    const manualMessage = `${U.sumCounts(counts)} Personen mit ${U.euro(chosenPrice())} Eintritt erfassen?`;
+    const confirmation = capacityConfirmation(
+      U.sumCounts(counts),
+      manualMessage,
+      "Unangemeldeten Check-in bestätigen"
+    );
+
+    if (!(
+      await confirmBox(
+        confirmation.title,
+        confirmation.message,
+        "Erfassen",
+        confirmation.tone
+      )
+    )) return;
+
     if (!(await confirmOfflineOperation("checkin"))) return;
 
     const id = `M-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
@@ -1883,17 +2055,20 @@
         }
 
         checkin.offline = result.status === "queued";
+        persistSuccessfulCheckin(checkin, true);
+        schedulePostSaveRefresh();
 
-        if (result.status === "queued") {
-          data.sequence += 1;
-          data.manual.push(checkin);
-          S.save(data);
+        if (result.delayed && result.status === "saved") {
+          current = null;
+          counts = null;
+          nav("home", { forceTop: true });
+          toast("Check-in wurde gespeichert.");
+          restartPolling();
+          return;
         }
       }
     } else {
-      data.sequence += 1;
-      data.manual.push(checkin);
-      S.save(data);
+      persistSuccessfulCheckin(checkin, true);
     }
 
     restartPolling();
@@ -2011,7 +2186,7 @@
         <dt>Warteliste</dt><dd>${currentStats.wait}</dd>
         <dt>Stornierte Ausnahmen</dt><dd>${currentStats.exceptions}</dd>
         <dt>Unangemeldet</dt><dd>${currentStats.manual}</dd>
-        <dt>Gesamt anwesend</dt><dd>${currentStats.present} / ${C.event.maxPersons}</dd>
+        <dt>Gesamt anwesend</dt><dd>${currentStats.present} / max. ${C.event.maxPersons}</dd>
         <dt>Sicher freie Plätze</dt><dd>${currentStats.safe}</dd>
         <dt>Eintritt</dt><dd>${U.euro(currentStats.entry)}</dd>
         <dt>Spenden</dt><dd>${U.euro(currentStats.donations)}</dd>
@@ -2087,15 +2262,15 @@
             count: 1,
             operationId: donation.operationId
           };
-          data.donations.push(donation);
-          S.save(data);
         } else {
           donationNotice = null;
         }
+
+        persistSuccessfulDonation(donation);
+        schedulePostSaveRefresh();
       }
     } else {
-      data.donations.push(donation);
-      S.save(data);
+      persistSuccessfulDonation(donation);
     }
 
     nav("home", { forceTop: true });
@@ -2150,16 +2325,23 @@
     });
   }
 
-  function confirmBox(title, body, confirmText) {
+  function confirmBox(title, body, confirmText, tone = "") {
+    const modalCard = $("modal").querySelector(".modal");
+
     $("modalTitle").textContent = title;
     $("modalBody").textContent = body;
     $("modalConfirm").textContent = confirmText;
+
+    modalCard.classList.remove("capacity-warning", "capacity-danger");
+    if (tone) modalCard.classList.add(tone);
+
     $("modal").classList.remove("hidden");
     return new Promise(resolve => { modalResolve = resolve; });
   }
 
   function closeModal(value) {
     $("modal").classList.add("hidden");
+    $("modal").querySelector(".modal")?.classList.remove("capacity-warning", "capacity-danger");
     $("modalCancel").classList.remove("hidden");
     if (modalResolve) modalResolve(value);
     modalResolve = null;
