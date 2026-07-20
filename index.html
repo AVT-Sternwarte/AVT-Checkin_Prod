@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#172a3a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AVT Check-in">
+<title>AVT Check-in</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/favicon-32.png">
+<link rel="stylesheet" href="styles.css?v=1.0.0-rc.1">
+</head>
+<body>
+<div class="app-shell">
+<header class="topbar">
+  <div class="brand">
+    <img src="icons/header-logo.png" alt="Logo der Astronomischen Vereinigung Tübingen e. V.">
+    <div><strong>AVT Check-in</strong><small>Version 1.0.0-rc.1</small></div>
+  </div>
+  <div class="head-actions hidden" id="headActions"><button id="logoutTopBtn" class="head-btn" type="button" aria-label="Abmelden" title="Abmelden"><img src="icons/power-icon.png" alt=""></button><button id="refreshBtn" class="head-btn" type="button" aria-label="Statistik aktualisieren" title="Statistik aktualisieren"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M25 9a11 11 0 1 1-4-3.2"/><path d="M24 3v8h-8"/></svg></button></div>
+</header>
+
+<main>
+<section id="loginView" class="view narrow">
+  <div class="card">
+    <h1>Check-in-Zugang</h1>
+    <p class="muted">Produktiver Mehrgerätebetrieb.</p>
+    <form id="loginForm">
+      <label class="password-label" for="password">Passwort</label>
+      <div class="password-row">
+        <input id="password" type="password" autocomplete="current-password" required>
+        <button id="passwordToggle" class="password-toggle" type="button" aria-label="Passwort anzeigen" title="Passwort anzeigen" aria-pressed="false">
+          <svg class="password-eye password-eye-open" viewBox="0 0 40 28" aria-hidden="true">
+            <path d="M2 14C6.8 6.6 12.8 3 20 3s13.2 3.6 18 11c-4.8 7.4-10.8 11-18 11S6.8 21.4 2 14Z"></path>
+            <circle cx="20" cy="14" r="6"></circle>
+          </svg>
+          <svg class="password-eye password-eye-closed hidden" viewBox="0 0 40 30" aria-hidden="true">
+            <path d="M3 15c4.6-6.8 10.3-10.2 17-10.2 4.1 0 7.8 1.3 11.1 3.9"></path>
+            <path d="M37 15c-4.6 6.8-10.3 10.2-17 10.2-4.2 0-8-1.4-11.4-4.1"></path>
+            <path d="M15.8 10.4A6 6 0 0 1 24 18.6"></path>
+            <path d="M4 3l32 24"></path>
+          </svg>
+        </button>
+      </div>
+      <fieldset><legend>Anmeldung speichern</legend>
+        <label><input type="radio" name="mode" value="session"> Bis zum Schließen</label>
+        <label><input type="radio" name="mode" value="day" checked> Für heute</label>
+        <label><input type="radio" name="mode" value="permanent"> Dauerhaft</label>
+      </fieldset>
+      <button class="primary full">Anmelden</button>
+      <p id="loginError" class="error"></p>
+    </form>
+  </div>
+</section>
+
+<section id="mainView" class="view hidden">
+  <div id="backendStatus" class="backend-status local">Verbindung wird hergestellt …</div>
+  <section class="event-card compact-event-card">
+    <div class="event-compact-lines">
+      <div class="capacity compact-capacity"><strong id="presentTop">0</strong> von <strong>65</strong> Personen eingecheckt</div>
+      <div class="safe-capacity compact-safe-capacity">Sicher freie Plätze: <strong id="safeFreeTop">0</strong></div>
+    </div>
+    <button id="eventInfoTopBtn" class="event-info-btn" type="button" aria-label="Veranstaltungsdetails anzeigen" title="Veranstaltungsdetails anzeigen">
+      <svg class="event-info-svg" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="13.5"></circle>
+        <circle cx="16" cy="9.3" r="1.4" class="event-info-fill"></circle>
+        <path d="M16 13.1v9.1"></path>
+      </svg>
+    </button>
+  </section>
+
+  <div id="operationNotice" class="hidden" aria-live="polite"></div>
+
+  <nav id="mainActionRow" class="action-row" aria-label="Hauptfunktionen">
+    <button class="nav-icon" data-nav="scan" aria-label="QR-Code scannen" title="QR-Code scannen"><svg class="nav-svg qr-nav-svg" viewBox="0 0 32 32" aria-hidden="true">
+  <rect x="2" y="2" width="9" height="9" rx="1"></rect><rect x="5" y="5" width="3" height="3" class="svg-fill"></rect>
+  <rect x="21" y="2" width="9" height="9" rx="1"></rect><rect x="24" y="5" width="3" height="3" class="svg-fill"></rect>
+  <rect x="2" y="21" width="9" height="9" rx="1"></rect><rect x="5" y="24" width="3" height="3" class="svg-fill"></rect>
+  <path d="M15 3h3v3h-3zm0 6h3v3h-3zm0 6h3v3h-3zm6 0h3v3h-3zm6 0h3v3h-3zm-12 6h3v3h-3zm6 0h3v3h-3zm6 0h3v3h-3zm-12 6h3v3h-3zm6 0h9v3h-9z" class="svg-fill no-stroke"></path>
+</svg></button>
+    <button class="nav-icon" data-nav="search" aria-label="Anmeldung suchen" title="Anmeldung suchen"><svg class="nav-svg search-nav-svg" viewBox="0 0 32 32" aria-hidden="true">
+  <circle cx="14" cy="14" r="8"></circle><path d="M20 20l8 8"></path>
+</svg></button>
+    <button class="nav-icon" data-nav="manual" aria-label="Unangemeldet einchecken" title="Unangemeldet einchecken"><svg class="nav-svg" viewBox="0 0 32 32" aria-hidden="true">
+  <circle cx="11" cy="9" r="4"></circle><path d="M3 25c0-5 3-8 8-8s8 3 8 8"></path>
+  <path d="M25 13v12M19 19h12"></path>
+</svg></button>
+    <button class="nav-icon donation-nav-symbol" data-nav="donation" aria-label="Spende erfassen" title="Spende erfassen">€+</button>
+    <button class="nav-icon overview-nav-symbol" data-nav="overview" aria-label="Übersicht" title="Übersicht">Σ</button>
+  </nav>
+
+  <section id="homePanel" class="panel">
+    <div id="summary" class="summary-grid"></div>
+  </section>
+
+  <section id="scanPanel" class="panel hidden">
+    <div class="panel-head"><button data-nav="home">‹ Zurück</button><h2>QR-Code scannen</h2></div>
+    <div class="card scanner-card">
+      <button id="cameraPlaceholder" class="camera-placeholder" type="button"><svg class="nav-svg qr-nav-svg" viewBox="0 0 32 32" aria-hidden="true">
+  <rect x="2" y="2" width="9" height="9" rx="1"></rect><rect x="5" y="5" width="3" height="3" class="svg-fill"></rect>
+  <rect x="21" y="2" width="9" height="9" rx="1"></rect><rect x="24" y="5" width="3" height="3" class="svg-fill"></rect>
+  <rect x="2" y="21" width="9" height="9" rx="1"></rect><rect x="5" y="24" width="3" height="3" class="svg-fill"></rect>
+  <path d="M15 3h3v3h-3zm0 6h3v3h-3zm0 6h3v3h-3zm6 0h3v3h-3zm6 0h3v3h-3zm-12 6h3v3h-3zm6 0h3v3h-3zm6 0h3v3h-3zm-12 6h3v3h-3zm6 0h9v3h-9z" class="svg-fill no-stroke"></path>
+</svg><strong>Kamera starten</strong></button>
+      <video id="cameraVideo" class="hidden" playsinline muted></video>
+      <canvas id="cameraCanvas" class="hidden"></canvas>
+      <div id="scanLine" class="scan-line hidden"></div>
+      <p id="cameraStatus" class="muted"></p>
+      <button id="startCameraButton" class="primary full">Kamera starten</button>
+      <button id="stopCameraButton" class="secondary full hidden">Kamera stoppen</button>
+      <label class="button secondary full">QR-Code aus Bild auswählen<input id="imageInput" type="file" accept="image/*" hidden></label>
+    </div>
+  </section>
+
+  <section id="searchPanel" class="panel hidden">
+    <div class="panel-head"><button data-nav="home">‹ Zurück</button><h2>Anmeldung suchen</h2></div>
+    <div class="card search-card">
+      <label>Anmeldenummer oder Name<input id="searchInput" type="search" placeholder="A-02 oder Muster"></label>
+      <div class="search-filter-row" role="group" aria-label="Listenfilter">
+        <button class="search-filter active" data-search-filter="open" type="button">Offen</button>
+        <button class="search-filter" data-search-filter="checked" type="button">Eingecheckt</button>
+        <button class="search-filter" data-search-filter="all" type="button">Alle</button>
+      </div>
+      <div id="searchResults" class="registration-list"></div>
+    </div>
+  </section>
+
+  <section id="manualPanel" class="panel hidden">
+    <div class="panel-head"><button data-nav="home">‹ Zurück</button><h2>Unangemeldeter Check-in</h2></div>
+    <div id="manualContent"></div>
+  </section>
+
+  <section id="donationPanel" class="panel hidden">
+    <div class="panel-head"><button data-nav="home">‹ Zurück</button><h2>Spende erfassen</h2></div>
+    <div class="card">
+      <label>Spendenbetrag
+        <input id="donationAmount" type="number" min="0" step="0.50" inputmode="decimal" placeholder="Betrag in Euro">
+      </label>
+      <button id="saveDonationBtn" class="primary full" type="button">Spende bestätigen</button>
+    </div>
+    <div id="donationSummary"></div>
+  </section>
+
+  <section id="resultPanel" class="panel hidden">
+    <div class="panel-head"><button data-nav="home">‹ Abbrechen</button><h2>Prüfung</h2></div>
+    <div id="resultContent"></div>
+  </section>
+
+  <section id="overviewPanel" class="panel hidden">
+    <div class="panel-head"><button data-nav="home">‹ Zurück</button><h2>Übersicht</h2></div>
+    <div id="overviewContent"></div>
+  </section>
+</section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<div id="modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <h2 id="modalTitle"></h2>
+    <div id="modalBody"></div>
+    <div class="modal-actions">
+      <button id="modalCancel" class="secondary">Abbrechen</button>
+      <button id="modalConfirm" class="primary">Bestätigen</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<div id="savingOverlay" class="saving-overlay hidden" role="status" aria-live="assertive" aria-busy="true">
+  <div class="saving-card">
+    <svg class="saving-spinner" viewBox="0 0 64 64" aria-hidden="true">
+      <g class="saving-spinner-rotor">
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(0 32 32)"></rect>
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(30 32 32)" opacity=".92"></rect>
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(60 32 32)" opacity=".84"></rect>
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(90 32 32)" opacity=".76"></rect>
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(120 32 32)" opacity=".68"></rect>
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(150 32 32)" opacity=".60"></rect>
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(180 32 32)" opacity=".52"></rect>
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(210 32 32)" opacity=".44"></rect>
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(240 32 32)" opacity=".36"></rect>
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(270 32 32)" opacity=".30"></rect>
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(300 32 32)" opacity=".24"></rect>
+        <rect x="29" y="3" width="6" height="16" rx="3" transform="rotate(330 32 32)" opacity=".18"></rect>
+      </g>
+    </svg>
+    <div id="savingText" class="saving-text">Check-in wird gespeichert …</div>
+  </div>
+</div>
+
+<div id="saveDelayModal" class="modal-backdrop save-delay-modal hidden" role="dialog" aria-modal="true" aria-labelledby="saveDelayTitle">
+  <div class="modal">
+    <h2 id="saveDelayTitle">Speicherung dauert länger als erwartet</h2>
+    <p id="saveDelayBody">Der Check-in wurde vom Server noch nicht bestätigt.</p>
+    <div class="save-delay-actions">
+      <button id="saveDelayCancel" class="secondary" type="button">Abbrechen</button>
+      <button id="saveDelayOffline" class="secondary" type="button">Offline speichern</button>
+      <button id="saveDelayContinue" class="primary" type="button">Weiter warten</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/jsQR.js?v=1.4.0"></script>
+<script src="js/config.js?v=1.0.0-rc.1"></script>
+<script src="js/backend.js?v=1.0.0-rc.1"></script>
+<script src="js/storage.js?v=1.0.0-rc.1"></script>
+<script src="js/scanner.js?v=1.0.0-rc.1"></script>
+<script src="js/app.js?v=1.0.0-rc.1"></script>
+</body>
+</html>
