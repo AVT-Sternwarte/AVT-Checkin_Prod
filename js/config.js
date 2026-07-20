@@ -1,6 +1,6 @@
 "use strict";
 window.AVT_CONFIG = Object.freeze({
-  version: "1.0.0-rc.1",
+  version: "1.0.0-rc.2",
   qrPrefix: "AVT-CHECKIN-V1:",
   backend: {
     // Hier nach der Apps-Script-Bereitstellung die Produktiv-Web-App-URL mit /exec eintragen.
@@ -19,6 +19,7 @@ window.AVT_CONFIG = Object.freeze({
     id: "",
     title: "Sternführung",
     date: "",
+    dateDisplay: "",
     time: "",
     maxPersons: 65
   },
@@ -54,6 +55,7 @@ window.AVT_CONFIG = Object.freeze({
   ],
   storageKeys: {
     login: "avt-checkin-prod-login-v1",
+    loginBackup: "avt-checkin-prod-login-backup-v1",
     data: "avt-checkin-prod-local-data-v1",
     cachedBackend: "avt-checkin-prod-cached-backend-v1",
     offlineQueue: "avt-checkin-prod-offline-queue-v1",
@@ -77,9 +79,45 @@ window.AVT_UTIL = Object.freeze({
     return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(value) || 0);
   },
   date(value) {
-    const parts = String(value || "").split("-");
-    if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) return "–";
-    return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    const text = String(value || "").trim();
+    if (!text) return "–";
+
+    let match = /^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/.exec(text);
+    if (match) return `${match[3]}.${match[2]}.${match[1]}`;
+
+    match = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(text);
+    if (match) return text;
+
+    const parsed = new Date(text);
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat("de-DE", {
+        timeZone: "Europe/Berlin",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      }).format(parsed);
+    }
+
+    return text;
+  },
+  time(value) {
+    const text = String(value || "").trim();
+    if (!text) return "–";
+
+    let match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(text);
+    if (match) return `${match[1].padStart(2, "0")}:${match[2]}`;
+
+    const parsed = new Date(text);
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Intl.DateTimeFormat("de-DE", {
+        timeZone: "Europe/Berlin",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).format(parsed);
+    }
+
+    return text.length >= 5 ? text.substring(0, 5) : text;
   },
   now() { return new Date().toISOString(); },
   clone(value) { return JSON.parse(JSON.stringify(value)); }
