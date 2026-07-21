@@ -528,7 +528,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.6 */
+/* Produktivkorrekturen 1.0.0 */
 .head-actions{
   flex:0 0 auto;
   gap:6px;
@@ -595,7 +595,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.6 */
+/* Produktivkorrekturen 1.0.0 */
 .registration-blocked-card{
   border:2px solid #d7a928;
   background:#fff8df;
@@ -614,7 +614,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.6 */
+/* Produktivkorrekturen 1.0.0 */
 .compact-safe-capacity{
   display:flex;
   align-items:baseline;
@@ -662,7 +662,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0-rc.6 */
+/* Produktivkorrekturen 1.0.0 */
 .compact-capacity{
   white-space:nowrap;
 }
@@ -747,7 +747,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrektur 1.0.0-rc.6:
+/* Produktivkorrektur 1.0.0:
    Die vier Haupt-Infofelder bestehen nur noch aus Überschrift und Wert
    und erhalten deshalb eine deutlich geringere Höhe. */
 .summary{

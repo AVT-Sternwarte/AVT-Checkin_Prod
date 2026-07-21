@@ -1,4 +1,4 @@
-const CACHE = "avt-checkin-prod-1.0.0-rc.6";
+const CACHE = "avt-checkin-prod-1.0.0";
 const LOCAL_FILES = [
   "./", "index.html", "help.html", "styles.css", "manifest.webmanifest",
   "js/config.js", "js/backend.js", "js/storage.js", "js/scanner.js",
