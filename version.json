@@ -1,0 +1,13 @@
+{
+  "version": "1.1.0",
+  "date": "2026-10-14",
+  "headline": "Korrekturen & automatischer Veranstaltungsabschluss",
+  "changes": [
+    "Eingecheckte Personen und unangemeldete Besucher lassen sich nachträglich korrigieren.",
+    "Eintrittsbeträge und Familientarif können angepasst werden.",
+    "Spenden können korrigiert oder storniert werden.",
+    "Der Veranstaltungsstatus „durchgeführt“ sperrt Korrekturen automatisch – ohne Zusatzschalter.",
+    "Bei Updates erscheint ein Hinweis mit den Neuerungen; dein bisheriges App-Symbol bleibt gültig.",
+    "Alle Änderungen werden serverseitig protokolliert."
+  ]
+}

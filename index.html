@@ -10,14 +10,29 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon-32.png">
-<link rel="stylesheet" href="styles.css?v=1.0.0">
+<link rel="stylesheet" href="styles.css?v=1.1.0">
 </head>
 <body>
 <div class="app-shell">
+
+<div id="avtUpdateBanner" class="avt-update-banner hidden" role="status" aria-live="polite">
+  <div class="avt-update-banner-text"><strong>Neue Version verfügbar</strong><span id="avtUpdateBannerVersion"></span></div>
+  <button type="button" id="avtUpdateNowBtn" class="primary">Jetzt aktualisieren</button>
+  <button type="button" id="avtUpdateLaterBtn" class="secondary">Später</button>
+</div>
+<div id="avtReleaseDialog" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="avtReleaseHeading">
+  <div class="modal avt-release-modal">
+    <h2 id="avtReleaseHeading">Neu in AVT Check-in</h2>
+    <p id="avtReleaseLead" class="muted"></p>
+    <ul id="avtReleaseNotes"></ul>
+    <button type="button" id="avtReleaseCloseBtn" class="primary full">Verstanden</button>
+  </div>
+</div>
+
 <header class="topbar">
   <div class="brand">
     <img src="icons/header-logo.png" alt="Logo der Astronomischen Vereinigung Tübingen e. V.">
-    <div><strong>AVT Check-in</strong><small>Version 1.0.0</small></div>
+    <div><strong>AVT Check-in</strong><small>Version 1.1.0</small></div>
   </div>
   <div class="head-actions hidden" id="headActions">
     <button id="logoutTopBtn" class="head-btn" type="button" aria-label="Abmelden" title="Abmelden">
@@ -66,7 +81,7 @@
 </section>
 
 <section id="mainView" class="view hidden">
-  <div id="backendStatus" class="backend-status local">Verbindung wird hergestellt …</div>
+  <div id="backendStatus" class="backend-status local">DEMO · nur dieses Gerät</div>
   <section id="registrationBlockedPanel" class="panel hidden" aria-live="polite">
     <div class="card registration-blocked-card">
       <h2 id="registrationBlockedTitle">Veranstaltung wird geprüft …</h2>
@@ -141,7 +156,7 @@
   <section id="searchPanel" class="panel hidden">
     <div class="panel-head"><button data-nav="home">‹ Zurück</button><h2>Anmeldung suchen</h2></div>
     <div class="card search-card">
-      <label>Anmeldenummer oder Name<input id="searchInput" type="search" placeholder="A-02 oder Muster"></label>
+      <label>Anmeldenummer oder Name<input id="searchInput" type="search" placeholder="A-02, Muster oder Unangemeldet"></label>
       <div class="search-filter-row" role="group" aria-label="Listenfilter">
         <button class="search-filter active" data-search-filter="open" type="button">Offen</button>
         <button class="search-filter" data-search-filter="checked" type="button">Eingecheckt</button>
@@ -170,6 +185,11 @@
   <section id="resultPanel" class="panel hidden">
     <div class="panel-head"><button data-nav="home">‹ Abbrechen</button><h2>Prüfung</h2></div>
     <div id="resultContent"></div>
+  </section>
+
+  <section id="editPanel" class="panel hidden">
+    <div class="panel-head"><button id="editBackBtn" type="button">‹ Zurück</button><h2 id="editHeading">Korrigieren</h2></div>
+    <div id="editContent"></div>
   </section>
 
   <section id="overviewPanel" class="panel hidden">
@@ -227,10 +247,11 @@
 </div>
 
 <script src="js/jsQR.js?v=1.4.0"></script>
-<script src="js/config.js?v=1.0.0"></script>
-<script src="js/backend.js?v=1.0.0"></script>
-<script src="js/storage.js?v=1.0.0"></script>
-<script src="js/scanner.js?v=1.0.0"></script>
-<script src="js/app.js?v=1.0.0"></script>
+<script src="js/config.js?v=1.1.0"></script>
+<script src="js/backend.js?v=1.1.0"></script>
+<script src="js/storage.js?v=1.1.0"></script>
+<script src="js/scanner.js?v=1.1.0"></script>
+<script src="js/app.js?v=1.1.0"></script>
+<script src="js/updater.js?v=1.1.0"></script>
 </body>
 </html>

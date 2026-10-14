@@ -6,7 +6,7 @@
   const SC = window.AVT_SCANNER;
   const $ = id => document.getElementById(id);
 
-  const panels = ["homePanel", "scanPanel", "searchPanel", "manualPanel", "donationPanel", "resultPanel", "overviewPanel"];
+  const panels = ["homePanel", "scanPanel", "searchPanel", "manualPanel", "donationPanel", "resultPanel", "overviewPanel", "editPanel"];
   const navigablePanels = new Set(["scan", "search", "manual", "donation", "overview"]);
   const categories = {
     adult: { label: "Erwachsene", price: C.prices.adult },
@@ -38,6 +38,16 @@
   let donationNotice = null;
   let transientSyncNotice = "";
   let backendVersion = "";
+  let activeEdit = null;
+  let donationListExpanded = false;
+
+  function updateDemoButtons() {
+    if (!C.demoMode) return;
+    const closed = AVT_BACKEND.getDemoClosed();
+    const button = $("demoStatusBtn");
+    if (button) button.textContent = closed ? "Status: durchgeführt (öffnen)" : "Status: offen (abschließen)";
+    $("mainView")?.querySelector(".demo-toolbar")?.classList.toggle("closed", closed);
+  }
 
   function eventDateText() {
     return C.event.dateDisplay || U.date(C.event.date);
@@ -100,6 +110,25 @@
     $("helpBtn").addEventListener("click", openHelp);
     $("logoutTopBtn").addEventListener("click", logout);
     $("saveDonationBtn").addEventListener("click", saveDonation);
+    if (C.demoMode) {
+      $("demoResetBtn").addEventListener("click", async () => {
+        if (!(await confirmBox("Demo zurücksetzen", "Alle Änderungen dieser Demo im aktuellen Browser verwerfen und Beispieldaten neu laden?", "Demo zurücksetzen"))) return;
+        AVT_BACKEND.resetDemo();
+        current = null; counts = null; activeEdit = null; donationListExpanded = false;
+        await refreshSharedState({ quiet: true, reason: "demo-reset" });
+        nav("home", { forceTop: true });
+        updateDemoButtons();
+        toast("Demo wurde zurückgesetzt.");
+      });
+      $("demoStatusBtn").addEventListener("click", async () => {
+        const closed = !AVT_BACKEND.getDemoClosed();
+        if (closed && !(await confirmBox("Demo-Veranstaltung abschließen", "Für den Test auf Status „durchgeführt“ setzen? Danach können Check-ins und Spenden nicht mehr korrigiert werden. Der Status kann jederzeit zurückgestellt werden.", "Status ändern"))) return;
+        AVT_BACKEND.setDemoClosed(closed);
+        await refreshSharedState({ quiet: true, reason: "demo-status" });
+        updateDemoButtons();
+        toast(closed ? "Demo-Veranstaltung abgeschlossen: Korrekturen gesperrt." : "Demo-Veranstaltung wieder offen.");
+      });
+    }
     $("searchInput").addEventListener("input", renderSearch);
     $("cameraPlaceholder").addEventListener("click", startCamera);
     $("startCameraButton").addEventListener("click", startCamera);
@@ -161,6 +190,8 @@
       C.event.time = snapshot.event.time;
       C.event.maxPersons = Number(snapshot.event.maxPersons || C.event.maxPersons || 65);
       C.event.backendVersion = backendVersion;
+      C.event.editingAllowed = snapshot.event.editingAllowed === true;
+      C.event.editClosureReason = String(snapshot.event.editClosureReason || "");
 
       const explicitlyEnabled = snapshot.event.registrationEnabled === true;
       C.event.registrationEnabled = versionCompatible && explicitlyEnabled;
@@ -256,7 +287,7 @@
     const time = syncTimeLabel();
     setBackendStatus(
       "online",
-      `${text}${time ? ` · ${time}` : ""} · ${outstandingText()}`
+      C.demoMode ? "DEMO – nur lokal gespeichert, kein Server" : `${text}${time ? ` · ${time}` : ""} · ${outstandingText()}`
     );
   }
 
@@ -314,6 +345,7 @@
   }
 
   function renderSharedState() {
+    updateDemoButtons();
     renderRegistrationAvailability();
     if (!registrationAllowed()) return;
 
@@ -384,6 +416,7 @@
       showOnlineStatus();
       if (AVT_BACKEND.queueCount()) await syncOfflineQueue({ quiet: true });
       renderSharedState();
+      updateDemoButtons();
       restartPolling();
     } catch (error) {
       if (AVT_BACKEND.isAuthError(error)) {
@@ -460,7 +493,7 @@
 
         renderSharedState();
 
-        if (!quiet) toast("Gemeinsamer Stand aktualisiert.");
+        if (!quiet) toast(C.demoMode ? "Lokaler Demo-Stand aktualisiert." : "Gemeinsamer Stand aktualisiert.");
       } catch (error) {
         if (AVT_BACKEND.isAuthError(error)) {
           handleAuthenticationFailure(error.message);
@@ -1187,6 +1220,7 @@
     if (name === "home") renderHome();
     if (name === "overview") renderOverview();
     if (name === "donation") renderDonationPanel();
+    if (name === "edit") renderEditPanel();
     if (name === "search") {
       if (!options.keepSearch) {
         $("searchInput").value = "";
@@ -1293,7 +1327,7 @@
       entry += Number(checkin.paid) || 0;
     });
 
-    const donations = data.donations.reduce((sum, donation) => sum + (Number(donation.amount) || 0), 0);
+    const donations = data.donations.reduce((sum, donation) => sum + (donation.voided ? 0 : (Number(donation.amount) || 0)), 0);
     const present = regular + wait + exceptions + manual;
     const confirmed = bookedConfirmed();
     const initially = Math.max(0, C.event.maxPersons - confirmed);
@@ -1363,7 +1397,7 @@
       <div class="card" style="margin:0;padding:12px;">
         <p><strong>${U.esc(C.event.title)}</strong></p>
         <p>${U.esc(eventDateText())} · ${U.esc(eventTimeText())} Uhr</p>
-        <p>Produktiver Mehrgerätebetrieb</p>
+        <p>Reine Browser-Demo (keine Synchronisierung)</p>
       </div>
       <div class="card" style="margin:12px 0 0 0;padding:12px;">
         <dl class="detail-grid">
@@ -1580,7 +1614,7 @@
     });
 
     const query = $("searchInput").value.trim().toLowerCase();
-    const list = activeEventRegistrations().filter(registration => {
+    const registrations = activeEventRegistrations().filter(registration => {
       const checked = isRegistrationChecked(registration);
       if (searchFilter === "open" && checked) return false;
       if (searchFilter === "checked" && !checked) return false;
@@ -1592,13 +1626,52 @@
       return true;
     });
 
-    $("searchResults").innerHTML = list.length
-      ? list.map(searchResultHtml).join("")
+    // Unangemeldete Check-ins haben keine Voranmeldung und stehen daher
+    // ausschließlich in data.manual. Sie gehören dennoch zu "Eingecheckt"/"Alle".
+    const manualEntries = searchFilter === "open" ? [] : (data.manual || [])
+      .map((checkin, index) => ({ checkin, index }))
+      .filter(({ checkin }) => {
+        if (checkin.voided) return false;
+        const searchable = [
+          "unangemeldet", "unangemeldeter check-in", "manuell",
+          checkin.id, checkin.number, checkin.token, checkin.operationId
+        ].filter(Boolean).join(" ").toLowerCase();
+        return !query || searchable.includes(query);
+      })
+      .reverse(); // Zuletzt erfasste unangemeldete Besucher zuerst.
+
+    const resultHtml = [
+      ...registrations.map(searchResultHtml),
+      ...manualEntries.map(({ checkin, index }) => manualSearchResultHtml(checkin, index))
+    ];
+    $("searchResults").innerHTML = resultHtml.length
+      ? resultHtml.join("")
       : `<p class="muted">Für diesen Filter wurde keine Anmeldung gefunden.</p>`;
 
     $("searchResults").querySelectorAll("[data-token]").forEach(button => {
-      button.onclick = () => processToken(button.dataset.token);
+      button.onclick = () => {
+        const registration = activeEventRegistrations().find(item => item.token === button.dataset.token);
+        if (!registration) return;
+        const checked = registrationCheckin(registration);
+        if (checked) openCheckinEdit(checked, "search");
+        else processToken(button.dataset.token);
+      };
     });
+    $("searchResults").querySelectorAll("[data-manual-index]").forEach(button => {
+      button.onclick = () => {
+        const checkin = data.manual[Number(button.dataset.manualIndex)];
+        if (checkin && !checkin.voided) openCheckinEdit(checkin, "search");
+      };
+    });
+  }
+
+  function manualSearchResultHtml(checkin, index) {
+    const persons = U.sumCounts(checkin.counts);
+    const reference = checkin.number || checkin.id || checkin.token || `M-${index + 1}`;
+    return `<button type="button" class="registration-entry" data-manual-index="${index}">
+      <span class="registration-entry-main"><strong>Unangemeldet</strong><small>${persons} ${persons === 1 ? "Person" : "Personen"} · ${U.esc(formatEditDate(checkin.time))} · ${U.esc(reference)}</small></span>
+      <span class="registration-state checked">Eingecheckt · ${persons}</span>
+    </button>`;
   }
 
   function searchResultHtml(registration) {
@@ -2020,7 +2093,7 @@
   }
 
   async function confirmOfflineOperation(type = "checkin") {
-    if (navigator.onLine && onlineState !== "offline") return true;
+    if (C.demoMode || (navigator.onLine && onlineState !== "offline")) return true;
 
     if (type === "donation") {
       return await confirmBox(
@@ -2143,7 +2216,7 @@
         status: part.status,
         booked: U.clone(part.booked)
       })),
-      offline: !navigator.onLine || onlineState === "offline",
+      offline: (!C.demoMode && !navigator.onLine) || onlineState === "offline",
       time: U.now()
     };
 
@@ -2249,7 +2322,7 @@
       tariff: tariffMode,
       correctionReason,
       kind: current.status === "confirmed" ? "regular" : current.status === "waitlist" ? "waitlist" : "exception",
-      offline: !navigator.onLine || onlineState === "offline",
+      offline: (!C.demoMode && !navigator.onLine) || onlineState === "offline",
       time: U.now()
     };
 
@@ -2350,7 +2423,7 @@
       tariff: tariffMode,
       correctionReason,
       kind: "manual",
-      offline: !navigator.onLine || onlineState === "offline",
+      offline: (!C.demoMode && !navigator.onLine) || onlineState === "offline",
       time: U.now()
     };
 
@@ -2518,13 +2591,34 @@
   function renderDonationPanel(preserveInput = false) {
     if (!preserveInput) $("donationAmount").value = "";
     const currentStats = stats();
+    const activeDonations = data.donations.filter(item => !item.voided);
     $("donationSummary").innerHTML = `<div class="card">
       <h3>Bisher erfasste Spenden</h3>
       <dl class="detail-grid">
-        <dt>Anzahl</dt><dd>${data.donations.length}</dd>
+        <dt>Anzahl</dt><dd>${activeDonations.length}</dd>
         <dt>Summe</dt><dd>${U.euro(currentStats.donations)}</dd>
       </dl>
+      <button id="showDonationsBtn" class="secondary full" type="button">
+        ${donationListExpanded ? "Spendenliste schließen" : "Spenden anzeigen / korrigieren"}
+      </button>
+      ${donationListExpanded ? `<div class="edit-list" id="donationEditList">
+        ${data.donations.length ? [...data.donations].reverse().map(item => `
+          <button class="edit-list-item" data-donation-id="${U.esc(item.operationId || "")}" type="button" ${item.voided ? "disabled" : ""}>
+            <span><strong>${U.euro(item.amount)}</strong><small>${U.esc(formatEditDate(item.time))}</small></span>
+            <span>${item.voided ? "Storniert" : "Bearbeiten ›"}</span>
+          </button>`).join("") : '<p class="muted">Noch keine Spenden vorhanden.</p>'}
+      </div>` : ""}
     </div>`;
+    $("showDonationsBtn").onclick = () => {
+      donationListExpanded = !donationListExpanded;
+      renderDonationPanel(true);
+    };
+    $("donationSummary").querySelectorAll("[data-donation-id]").forEach(button => {
+      button.onclick = () => {
+        const item = data.donations.find(d => d.operationId === button.dataset.donationId);
+        if (item) openDonationEdit(item);
+      };
+    });
   }
 
   async function saveDonation() {
@@ -2547,7 +2641,7 @@
     const donation = {
       amount,
       time: U.now(),
-      offline: !navigator.onLine || onlineState === "offline"
+      offline: (!C.demoMode && !navigator.onLine) || onlineState === "offline"
     };
 
     if (window.AVT_BACKEND?.isConfigured()) {
@@ -2605,12 +2699,233 @@
     );
   }
 
+  // Nur am Server gespeicherte Datensätze dürfen nachträglich geändert werden.
+  function editConnectionReady() {
+    if (!window.AVT_BACKEND?.isConfigured() || !backendReady || onlineState !== "online" ||
+        !C.demoMode && (!navigator.onLine || AVT_BACKEND.queueCount() > 0)) {
+      toast("Korrekturen sind nur online bei vollständig synchronisierten Daten möglich.");
+      return false;
+    }
+    if (C.event.editingAllowed !== true) {
+      toast(C.event.editClosureReason || "Diese Veranstaltung ist bereits abgeschlossen.");
+      return false;
+    }
+    return true;
+  }
+
+  function formatEditDate(value) {
+    if (!value) return "–";
+    const date = new Date(value);
+    return Number.isNaN(date.valueOf()) ? String(value) :
+      new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
+  }
+
+  function openCheckinEdit(checkin, origin = "search") {
+    if (!editConnectionReady()) return;
+    if (!checkin.operationId || !checkin.updatedAt || checkin.offline) {
+      toast("Check-in noch nicht sicher am Server gespeichert. Bitte zuerst synchronisieren.");
+      return;
+    }
+    const originalCounts = checkin.counts || {};
+    activeEdit = {
+      type: "checkin", origin, original: U.clone(checkin),
+      counts: Object.fromEntries(Object.keys(categories).map(key => [key, Number(originalCounts[key] || 0)])),
+      tariff: checkin.tariff === "family" ? "family" : "regular",
+      paid: Number(checkin.paid || 0),
+      correctionReason: String(checkin.correctionReason || ""),
+      note: ""
+    };
+    nav("edit");
+  }
+
+  function openDonationEdit(donation) {
+    if (!editConnectionReady()) return;
+    if (!donation.operationId || !donation.updatedAt || donation.offline) {
+      toast("Spende noch nicht sicher am Server gespeichert. Bitte zuerst synchronisieren.");
+      return;
+    }
+    activeEdit = {
+      type: "donation", origin: "donation", original: U.clone(donation),
+      amount: Number(donation.amount || 0), note: ""
+    };
+    nav("edit");
+  }
+
+  function editRegularPrice() {
+    return Object.keys(categories).reduce((sum, key) =>
+      sum + Number(activeEdit.counts[key] || 0) * Number(C.prices[key] || 0), 0);
+  }
+
+  function editFamilyEligible() {
+    const c = activeEdit.counts;
+    return Number(c.adult || 0) >= Number(C.familyRule.minAdults || 1) &&
+      (Number(c.child || 0) + Number(c.youth || 0) + Number(c.student || 0)) >= Number(C.familyRule.minReducedPersons || 1) &&
+      (C.familyRule.requireRegularPriceAboveFamilyPrice === false || editRegularPrice() > Number(C.prices.family || 0));
+  }
+
+  function editBasePrice() {
+    return activeEdit.tariff === "family" && editFamilyEligible() ? Number(C.prices.family) : editRegularPrice();
+  }
+
+  function renderEditPanel() {
+    if (!activeEdit) { nav("home"); return; }
+    const state = activeEdit;
+    const currentIsCheckin = state.type === "checkin";
+    $("editHeading").textContent = currentIsCheckin ? "Check-in korrigieren" : "Spende korrigieren";
+    $("editContent").innerHTML = currentIsCheckin ? `
+      <div class="card"><h3>${U.esc(state.original.name || state.original.number)}</h3>
+        <p class="muted">${U.esc(state.original.number)} · ursprünglicher Check-in ${U.esc(formatEditDate(state.original.time))}</p>
+        <p>Aktuell: ${U.sumCounts(state.original.counts)} Personen · ${U.euro(state.original.paid)} Eintritt</p>
+      </div>
+      <div class="card"><h3>Tatsächliche Personenzahl</h3>
+        ${Object.keys(categories).map(key => `<div class="counter-row">
+          <span>${U.esc(categories[key].label)}</span>
+          <button type="button" data-edit-count="${key}" data-edit-delta="-1">−</button>
+          <div class="counter-value">${state.counts[key]}</div>
+          <button type="button" data-edit-count="${key}" data-edit-delta="1">+</button>
+        </div>`).join("")}
+        <p><strong>Gesamt: ${U.sumCounts(state.counts)} Personen</strong></p>
+      </div>
+      <div class="card"><h3>Eintritt und Tarif</h3>
+        <div class="tariff-row">
+          <button type="button" data-edit-tariff="regular" class="${state.tariff === "regular" ? "active-tariff" : ""}">Regulär ${U.euro(editRegularPrice())}</button>
+          <button type="button" data-edit-tariff="family" class="${state.tariff === "family" ? "active-tariff" : ""}" ${editFamilyEligible() ? "" : "disabled"}>Familie ${U.euro(C.prices.family)}</button>
+        </div>
+        <p>Berechneter Eintritt: <strong>${U.euro(editBasePrice())}</strong></p>
+        <label>Tatsächlich kassierter Eintritt (€)
+          <input id="editPaid" type="number" min="0" max="100000" step="0.01" inputmode="decimal" value="${U.esc(state.paid)}">
+        </label>
+        <label>Preis-Korrekturgrund (bei abweichendem Betrag)
+          <select id="editCorrectionReason"><option value="">Kein Grund</option>
+            ${correctionReasons.map(reason => `<option value="${U.esc(reason.id)}" ${state.correctionReason === reason.id ? "selected" : ""}>${U.esc(reason.label)}</option>`).join("")}
+          </select>
+        </label>
+      </div>` : `
+      <div class="card"><h3>Spende vom ${U.esc(formatEditDate(state.original.time))}</h3>
+        <p>Bisher gespeichert: <strong>${U.euro(state.original.amount)}</strong></p>
+        <label>Korrigierter Spendenbetrag (€)
+          <input id="editDonationAmount" type="number" min="0.01" max="100000" step="0.01" inputmode="decimal" value="${U.esc(state.amount)}">
+        </label>
+      </div>`;
+    $("editContent").insertAdjacentHTML("beforeend", `
+      <div class="card">
+        <label>Begründung der Änderung (Pflichtfeld)
+          <textarea id="editNote" rows="3" maxlength="500" placeholder="z. B. Familientarif versehentlich nicht ausgewählt"></textarea>
+        </label>
+        <button id="editSaveBtn" class="primary full" type="button">Korrektur prüfen und speichern</button>
+        <button id="editVoidBtn" class="secondary full" type="button">${currentIsCheckin ? "Check-in vollständig zurücknehmen" : "Spende stornieren"}</button>
+      </div>`);
+    $("editNote").value = state.note;
+    $("editContent").querySelectorAll("[data-edit-count]").forEach(button => {
+      button.onclick = () => {
+        captureEditValues();
+        const key = button.dataset.editCount;
+        const wasCalculated = Number(String(state.paid).replace(",", ".")) === editBasePrice();
+        state.counts[key] = Math.max(0, Math.min(150, Number(state.counts[key] || 0) + Number(button.dataset.editDelta)));
+        if (state.tariff === "family" && !editFamilyEligible()) state.tariff = "regular";
+        if (wasCalculated) state.paid = editBasePrice();
+        renderEditPanel();
+      };
+    });
+    $("editContent").querySelectorAll("[data-edit-tariff]").forEach(button => {
+      button.onclick = () => {
+        captureEditValues();
+        if (button.dataset.editTariff === "family" && !editFamilyEligible()) return;
+        state.tariff = button.dataset.editTariff;
+        // Beim Tarifwechsel berechneten Betrag übernehmen, falls vorher der reguläre Preis galt.
+        state.paid = editBasePrice();
+        state.correctionReason = "";
+        renderEditPanel();
+      };
+    });
+    $("editSaveBtn").onclick = () => saveEditedRecord(false);
+    $("editVoidBtn").onclick = () => saveEditedRecord(true);
+    $("editBackBtn").onclick = () => { const origin = activeEdit?.origin || "home"; activeEdit = null; nav(origin, { keepSearch: true, noFocus: true }); };
+  }
+
+  function captureEditValues() {
+    if (!activeEdit) return;
+    activeEdit.note = $("editNote")?.value || activeEdit.note || "";
+    if (activeEdit.type === "checkin") {
+      activeEdit.paid = $("editPaid")?.value ?? activeEdit.paid;
+      activeEdit.correctionReason = $("editCorrectionReason")?.value ?? activeEdit.correctionReason;
+    } else {
+      activeEdit.amount = $("editDonationAmount")?.value ?? activeEdit.amount;
+    }
+  }
+
+  async function saveEditedRecord(voided) {
+    if (!activeEdit || !editConnectionReady()) return;
+    captureEditValues();
+    const state = activeEdit;
+    const note = String(state.note || "").trim();
+    if (note.length < 3 || note.length > 500) { toast("Bitte einen Korrekturgrund mit mindestens 3 Zeichen angeben."); return; }
+    const centsValid = value => /^\d+(?:[.,]\d{1,2})?$/.test(String(value).trim()) && Number(String(value).replace(",", ".")) <= 100000;
+    if (!voided && state.type === "checkin") {
+      if (U.sumCounts(state.counts) < 1 || U.sumCounts(state.counts) > 150 || !Object.values(state.counts).every(n => Number.isInteger(n) && n >= 0)) {
+        toast("Bitte gültige Personenzahlen eingeben."); return;
+      }
+      if (!centsValid(state.paid)) { toast("Bitte einen gültigen Eintrittsbetrag eingeben."); return; }
+      if (Number(String(state.paid).replace(",", ".")) !== editBasePrice() && !state.correctionReason) {
+        toast("Bei abweichendem Eintritt bitte einen Preis-Korrekturgrund auswählen."); return;
+      }
+    }
+    if (!voided && state.type === "donation" && (!centsValid(state.amount) || Number(String(state.amount).replace(",", ".")) <= 0)) {
+      toast("Bitte einen gültigen Spendenbetrag größer null eingeben."); return;
+    }
+    const checkin = state.type === "checkin";
+    const before = checkin ? `${U.sumCounts(state.original.counts)} Personen, ${U.euro(state.original.paid)}` : U.euro(state.original.amount);
+    const after = voided ? "vollständig storniert" : checkin ? `${U.sumCounts(state.counts)} Personen, ${U.euro(state.paid)}, Tarif ${state.tariff}` : U.euro(state.amount);
+    if (!(await confirmBox(voided ? "Stornierung bestätigen" : "Korrektur bestätigen",
+      `Bisher: ${before}\nNeu: ${after}\nBegründung: ${note}\n\nDie Änderungen werden im produktiven System gespeichert.`,
+      voided ? "Stornieren" : "Änderung speichern"))) return;
+    if (!editConnectionReady()) return;
+
+    const edit = {
+      targetOperationId: state.original.operationId,
+      expectedUpdatedAt: state.original.updatedAt,
+      reason: note, voided
+    };
+    if (checkin) {
+      Object.assign(edit, { token: state.original.token, counts: state.counts, tariff: state.tariff,
+        paid: Number(String(state.paid).replace(",", ".")), correctionReason: state.correctionReason });
+    } else {
+      edit.amount = Number(String(state.amount).replace(",", "."));
+    }
+    const action = checkin ? "editCheckin" : "editDonation";
+    const operation = AVT_BACKEND.prepareOperation(action, { edit });
+    const button = $("editSaveBtn");
+    button.disabled = true;
+    $("editVoidBtn").disabled = true;
+    try {
+      // Korrekturen nie offline zwischenspeichern oder in die Offlinewarteschlange stellen.
+      await AVT_BACKEND.sendPrepared(operation);
+      const returnTo = state.origin;
+      activeEdit = null;
+      await refreshSharedState({ quiet: true, reason: "edit" });
+      nav(returnTo, { keepSearch: true, noFocus: true });
+      toast(voided ? "Stornierung gespeichert." : "Korrektur gespeichert.");
+    } catch (error) {
+      if (AVT_BACKEND.isAuthError(error)) { handleAuthenticationFailure(error.message); return; }
+      // Falls die Antwort verloren ging, neuen Serverstand laden, niemals automatisch neu senden.
+      toast(error.message || "Korrektur nicht bestätigt. Bitte aktualisieren.");
+      await refreshSharedState({ quiet: true, reason: "edit-error" });
+      if (error.code === "EDIT_CONFLICT" || error.code === "EVENT_CLOSED") {
+        activeEdit = null;
+        nav(state.origin, { keepSearch: true, noFocus: true });
+      }
+    } finally {
+      if ($("editSaveBtn")) $("editSaveBtn").disabled = false;
+      if ($("editVoidBtn")) $("editVoidBtn").disabled = false;
+    }
+  }
+
   function renderOverview() {
     const currentStats = stats();
     $("presentTop").textContent = currentStats.present;
     const checkins = [
-      ...Object.values(data.checkins),
-      ...data.manual.map(item => ({ ...item, number: item.id, kind: "manual" }))
+      ...Object.values(data.checkins).map(item => ({ item, manual: false })),
+      ...(data.manual || []).filter(item => !item.voided).map(item => ({ item, manual: true }))
     ];
 
     $("overviewContent").innerHTML = `
@@ -2626,11 +2941,18 @@
       <div class="card">
         <h3>Erfasste Check-ins</h3>
         ${checkins.length
-          ? checkins.map(item => `<p><strong>${U.esc(item.number)}</strong> · ${U.sumCounts(item.counts)} Personen · ${U.euro(item.paid)}</p>`).join("")
+          ? checkins.map(({ item, manual }) => `<button type="button" class="edit-list-item" data-overview-kind="${manual ? "manual" : "registration"}" data-overview-id="${U.esc(manual ? item.id : item.token)}"><span><strong>${manual ? "Unangemeldet" : U.esc(item.number)}</strong><small>${U.sumCounts(item.counts)} Personen · ${U.euro(item.paid)}</small></span><span>Bearbeiten ›</span></button>`).join("")
           : '<p class="muted">Noch keine Check-ins.</p>'}
       </div>`;
+    $("overviewContent").querySelectorAll("[data-overview-kind]").forEach(button => {
+      button.onclick = () => {
+        const item = button.dataset.overviewKind === "manual"
+          ? data.manual.find(i => i.id === button.dataset.overviewId)
+          : Object.values(data.checkins).find(i => i.token === button.dataset.overviewId);
+        if (item) openCheckinEdit(item, "overview");
+      };
+    });
   }
-
 
   function showMessage(title, text, tone, withOverview = false) {
     panels.forEach(panel => $(panel).classList.add("hidden"));
@@ -2675,6 +2997,4 @@
   document.addEventListener("DOMContentLoaded", init);
 })();
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(() => {}));
-}
+// Die Service-Worker-Aktualisierung übernimmt js/updater.js.

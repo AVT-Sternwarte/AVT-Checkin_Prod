@@ -1,12 +1,11 @@
-# AVT Check-in Frontend 1.0.0
+# AVT Check-in – Produktiv 1.1.0
 
-Finales Produktivfrontend für GitHub Pages.
+**Das ist die Produktivfassung, KEINE GitHub-Demo.** Die Dateien dieses Ordners gehören ausschließlich in das *bestehende GitHub-Repository der produktiven Check-in-App*. Nicht in `AVT-Checkin_Test` hochladen.
 
-Die produktive Backendadresse ist in `js/config.js` bereits eingetragen und
-`enabled` steht auf `true`.
-
-Den vollständigen Inhalt dieses Ordners in das GitHub-Produktivrepository
-hochladen.
-
-Die integrierte Hilfe `help.html` ist für die finale Produktivversion
-bereinigt und enthält keine Demo- oder Test-Screenshots.
+- Bestehende GitHub-Pages-URL, Repo-Pfad, `manifest.webmanifest` mit `start_url: ./` und `id: ./` bleiben unverändert. Installierte iPhone-/Android-/Desktop-Symbole müssen nicht entfernt werden.
+- `js/config.js` nutzt unverändert die bisherige produktive Apps-Script `/exec`-URL und dieselben produktiven `avt-checkin-prod-*`-Schlüssel für Sitzung, Gerät und Offlinewarteschlange.
+- `version.json` meldet die aktuelle Version an vorhandene App-Installationen; `js/updater.js` prüft beim Start, beim erneuten Anzeigen und alle 5 Minuten bei sichtbarer App. Ein Banner bietet die Aktualisierung an. Nach dem Laden werden einmalig die Neuerungen gezeigt.
+- Benutzer:innen müssen **nicht** über eine neue URL installieren. Bei länger geöffneter App ist für die Aktualisierung eine Bestätigung erforderlich, damit keine Eingaben oder Offline-Daten verloren gehen.
+- `service-worker.js` darf nicht ausgelassen werden; `version.json` und alle Dateien zusammen übertragen. `version.json` möglichst zum Schluss hochladen.
+- Backend muss **zuvor** dieselbe Version 1.1.0 melden, sonst greift die vorhandene Sicherheitssperre der App.
+- Korrekturen sind nur online und bei synchronisierten Daten möglich. Nach „durchgeführt“ werden sie automatisch gesperrt: Das Backend liest den endgültigen Status aus `Archiv_Veranstaltungen` bzw. `Archiv_Summen` des bestehenden AVT-Veranstaltungskalenders. Es gibt keinen manuellen Sperrschalter.

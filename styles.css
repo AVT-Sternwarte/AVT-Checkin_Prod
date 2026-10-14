@@ -528,7 +528,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0 */
+/* Produktivkorrekturen 1.0.0-rc.6 */
 .head-actions{
   flex:0 0 auto;
   gap:6px;
@@ -595,7 +595,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0 */
+/* Produktivkorrekturen 1.0.0-rc.6 */
 .registration-blocked-card{
   border:2px solid #d7a928;
   background:#fff8df;
@@ -614,7 +614,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0 */
+/* Produktivkorrekturen 1.0.0-rc.6 */
 .compact-safe-capacity{
   display:flex;
   align-items:baseline;
@@ -662,7 +662,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrekturen 1.0.0 */
+/* Produktivkorrekturen 1.0.0-rc.6 */
 .compact-capacity{
   white-space:nowrap;
 }
@@ -747,7 +747,7 @@ body.force-top-reset{
 }
 
 
-/* Produktivkorrektur 1.0.0:
+/* Produktivkorrektur 1.0.0-rc.6:
    Die vier Haupt-Infofelder bestehen nur noch aus Überschrift und Wert
    und erhalten deshalb eine deutlich geringere Höhe. */
 .summary{
@@ -779,3 +779,34 @@ body.force-top-reset{
     padding:7px 9px;
   }
 }
+
+/* Nachträgliche Korrekturen – 1.0.0-test.7 */
+.test-label {font-size:.7em; color:#533500; background:#fbc95e; padding:2px 5px; border-radius:6px; vertical-align:middle}
+.edit-list {margin-top:12px;display:flex; flex-direction:column; gap:8px}
+.edit-list-item {display:flex; justify-content:space-between; gap:12px; align-items:center; width:100%;padding:14px 12px; border:1px solid #b9c6ce; border-radius:12px; background:#fff; color:#162e3c; text-align:left; cursor:pointer}
+.edit-list-item span {display:flex; flex-direction:column; gap:4px}
+.edit-list-item small {color:#657481; font-size:.86rem}
+.edit-list-item:disabled {cursor:default; opacity:.65}
+#editPanel .card {margin-bottom:14px}
+#editPanel label {display:block; margin:12px 0}
+#editPanel textarea {display:block;box-sizing:border-box; width:100%;padding:12px;min-height:85px;font:inherit;border:1px solid #bac4ca;border-radius:9px}
+#editPanel .counter-row {grid-template-columns:minmax(100px,1fr) 44px 40px 44px}
+#editPanel .full + .full {margin-top:10px}
+
+#modalBody {white-space:pre-line}
+
+/* Zusätzliche Demo-Steuerung – nicht Bestandteil der Produktiv-App */
+.demo-toolbar{background:#fff7df;border:1px solid #e2ba4f;color:#654500;border-radius:10px;padding:10px 12px;margin:8px 0 14px;font-size:.88rem;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.demo-toolbar>span{font-weight:700}
+.demo-buttons{display:flex;flex-wrap:wrap;gap:8px}
+.demo-buttons button{padding:8px 12px;min-height:36px;font-size:.85rem}
+.demo-toolbar.closed{border-color:#c47070;background:#fff0f0;color:#852727}
+@media(max-width:480px){.demo-toolbar{display:block}.demo-buttons{margin-top:8px}.demo-buttons button{flex:1}}
+
+/* Produktiv 1.0.0 – automatische Aktualisierung */
+.avt-update-banner{position:sticky;top:max(6px,env(safe-area-inset-top));z-index:35;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff3d6;color:#172231;border:1px solid #d6ae63;border-radius:12px;padding:10px;margin:8px 0;box-shadow:0 1px 5px #0002}
+.avt-update-banner-text{flex:1 1 100%;font-size:.92rem;display:grid;gap:2px}
+.avt-update-banner button{flex:1;min-width:0;font-size:.92rem;padding:10px 8px}
+.avt-release-modal{max-height:min(84vh,640px);overflow:auto}
+.avt-release-modal ul{padding-left:21px;line-height:1.45}
+.avt-release-modal li{margin:9px 0}
