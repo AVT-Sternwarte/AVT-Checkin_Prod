@@ -1,5 +1,5 @@
-/* AVT Check-in Produktiv v1.1.0 – bestehende PWA-Scope / URL unverändert */
-const CACHE = "avt-checkin-prod-1.1.0";
+/* AVT Check-in Produktiv v1.1.1 – bestehende PWA-Scope / URL unverändert */
+const CACHE = "avt-checkin-prod-1.1.1";
 const LOCAL_FILES = [
   "./", "index.html", "version.json", "help.html", "styles.css", "manifest.webmanifest",
   "js/config.js", "js/backend.js", "js/updater.js", "js/storage.js", "js/scanner.js",

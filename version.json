@@ -1,13 +1,18 @@
 {
-  "version": "1.1.0",
+  "version": "1.1.1",
   "date": "2026-10-14",
-  "headline": "Korrekturen & automatischer Veranstaltungsabschluss",
+  "headline": "Alle Neuerungen seit der bisherigen Produktivversion – einschließlich 1.1.1",
   "changes": [
-    "Eingecheckte Personen und unangemeldete Besucher lassen sich nachträglich korrigieren.",
-    "Eintrittsbeträge und Familientarif können angepasst werden.",
-    "Spenden können korrigiert oder storniert werden.",
-    "Der Veranstaltungsstatus „durchgeführt“ sperrt Korrekturen automatisch – ohne Zusatzschalter.",
-    "Bei Updates erscheint ein Hinweis mit den Neuerungen; dein bisheriges App-Symbol bleibt gültig.",
-    "Alle Änderungen werden serverseitig protokolliert."
+    "Eingecheckte Voranmeldungen können erneut geöffnet und nach einer Sicherheitsabfrage korrigiert werden.",
+    "Die tatsächliche Personenzahl und die Aufteilung auf Erwachsene, Kinder, Jugendliche und Studierende lassen sich berichtigen.",
+    "Familientarif, Eintrittsbetrag und Korrekturgrund können nachträglich angepasst werden.",
+    "Versehentlich erfolgte Check-ins lassen sich zurücknehmen.",
+    "Unangemeldete Besucher erscheinen jetzt unter „Eingecheckt“ und „Alle“ als „Unangemeldet“ und können ebenfalls korrigiert werden.",
+    "Einzelne Spenden können über eine Liste eingesehen, geändert oder storniert werden.",
+    "Korrekturen werden mit Sicherheitsabfrage und Änderungsprotokoll abgesichert; zwischenzeitliche Änderungen anderer Geräte werden berücksichtigt.",
+    "Ist eine Sternführung als „durchgeführt“ abgeschlossen, sind nachträgliche Korrekturen gesperrt. Die Daten bleiben einsehbar.",
+    "Neue App-Versionen werden erkannt und über den bisherigen Link bzw. das vorhandene Home-Bildschirm-Symbol angeboten.",
+    "Nach dem Update zeigt ein Fenster die gesamten Neuerungen; noch nicht synchronisierte Vorgänge werden vor einem Update geschützt.",
+    "Neu in 1.1.1: Beim Start erscheint während der kurzen Serverprüfung „Verbindung wird hergestellt …“ statt der irreführenden DEMO-Anzeige."
   ]
 }

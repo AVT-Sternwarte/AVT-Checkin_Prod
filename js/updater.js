@@ -12,7 +12,8 @@
   const fallbackChanges = [
     "Eingecheckte Anmeldungen und unangemeldete Besucher können nachträglich korrigiert werden.",
     "Spenden lassen sich korrigieren oder stornieren.",
-    "Bei künftigen Versionen wird automatisch ein Update-Hinweis angezeigt."
+    "Bereits installierte Apps aktualisieren sich über ihren bisherigen Link; Neuerungen erscheinen nach dem Update.",
+    "Beim Start wird während der Verbindung kein DEMO-Status mehr angezeigt."
   ];
 
   function cleanVersion(value) { return String(value || "").trim(); }
@@ -39,7 +40,8 @@
     const list = $("avtReleaseNotes");
     list.replaceChildren();
     const changes = Array.isArray(info?.changes) ? info.changes : fallbackChanges;
-    changes.slice(0, 8).forEach(item => {
+    // Den vollständigen kumulierten Neuerungstext anzeigen, nicht nur das letzte Mini-Update.
+    changes.forEach(item => {
       const li = document.createElement("li");
       li.textContent = safeString(item);
       list.appendChild(li);

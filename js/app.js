@@ -180,7 +180,8 @@
     if (!snapshot) return;
 
     backendVersion = String(snapshot.version || "");
-    const versionCompatible = backendVersion === C.version;
+    const expectedBackendVersion = String(C.backend?.expectedVersion || C.version);
+    const versionCompatible = backendVersion === expectedBackendVersion;
 
     if (snapshot.event) {
       C.event.id = snapshot.event.id;
@@ -198,7 +199,7 @@
 
       if (!versionCompatible) {
         C.event.registrationDisabledReason = backendVersion
-          ? `Frontend ${C.version} und Backend ${backendVersion} sind nicht kompatibel. Bitte das Check-in-Backend aktualisieren.`
+          ? `Frontend ${C.version} erwartet Backend ${expectedBackendVersion}; gefunden: ${backendVersion}. Bitte die Backend-Bereitstellung prüfen.`
           : "Die Backendversion und die Freigabe der Veranstaltungsart konnten nicht geprüft werden.";
       } else if (snapshot.event.registrationEnabled !== true) {
         C.event.registrationDisabledReason = String(
@@ -1191,6 +1192,8 @@
   }
 
   function showMain() {
+    // Während der Backendabfrage niemals einen Demo-Betrieb vortäuschen.
+    setBackendStatus("local", "Verbindung wird hergestellt …");
     $("loginView").classList.add("hidden");
     $("mainView").classList.remove("hidden");
     $("headActions").classList.remove("hidden");

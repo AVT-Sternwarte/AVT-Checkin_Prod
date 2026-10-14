@@ -1,8 +1,9 @@
 "use strict";
 window.AVT_CONFIG = Object.freeze({
-  version: "1.1.0",
+  version: "1.1.1",
   qrPrefix: "AVT-CHECKIN-V1:",
   backend: {
+    expectedVersion: "1.1.0", // Reines Frontend-Update; produktives Apps-Script bleibt bei 1.1.0.
     // Hier nach der Apps-Script-Bereitstellung die Produktiv-Web-App-URL mit /exec eintragen.
     // Beispiel: https://script.google.com/macros/s/AKfycb.../exec
     url: "https://script.google.com/macros/s/AKfycbxB_RuOndThOvcWBbDR_GKnI4_s-m1hkSS8JGEyhtsMZcifyMfCqA2Q5Vh_S1RmPMvc_Q/exec",
